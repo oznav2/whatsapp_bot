@@ -27,7 +27,8 @@ func NewService(baseURL string) *Service {
 	}
 }
 
-func (s *Service) TranscribeAudio(ctx context.Context, audioPath, language, model string) (*TranscriptionResponse, error) {
+// UploadAudio uploads audio file to the service and returns the file ID
+func (s *Service) UploadAudio(ctx context.Context, audioPath string) (*UploadResponse, error) {
 	// Open audio file
 	file, err := os.Open(audioPath)
 	if err != nil {
@@ -50,16 +51,57 @@ func (s *Service) TranscribeAudio(ctx context.Context, audioPath, language, mode
 		return nil, fmt.Errorf("failed to copy file data: %w", err)
 	}
 
-	// Add language field
-	if language != "" {
-		writer.WriteField("language", language)
-	}
-
 	// Close multipart writer
 	err = writer.Close()
 	if err != nil {
 		return nil, fmt.Errorf("failed to close multipart writer: %w", err)
 	}
+
+	// Create upload request
+	url := s.baseURL + "/api/upload"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	// Send request
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check status code
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("upload failed with status %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	// Parse response
+	var result UploadResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if !result.Success {
+		return nil, fmt.Errorf("upload failed (no error message)")
+	}
+
+	return &result, nil
+}
+
+func (s *Service) TranscribeAudio(ctx context.Context, audioPath, language, model string) (*TranscriptionResponse, error) {
+	// Step 1: Upload the audio file to get a file_id
+	uploadResp, err := s.UploadAudio(ctx, audioPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upload audio: %w", err)
+	}
+
+	// Step 2: Construct the URL for the uploaded file
+	// The service expects a URL it can download from
+	fileURL := s.baseURL + "/uploads/" + uploadResp.FileID
 
 	// Determine endpoint based on model
 	endpoint := "/api/transcribe/whisper-ivrit"
@@ -69,14 +111,25 @@ func (s *Service) TranscribeAudio(ctx context.Context, audioPath, language, mode
 		endpoint = "/api/transcribe/whisper"
 	}
 
-	// Create request
+	// Step 3: Create JSON request body with the file URL
+	requestBody := map[string]interface{}{
+		"url":      fileURL,
+		"language": language,
+	}
+
+	bodyBytes, err := json.Marshal(requestBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// Create transcription request
 	url := s.baseURL + endpoint
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("Content-Type", "application/json")
 
 	// Send request
 	resp, err := s.httpClient.Do(req)

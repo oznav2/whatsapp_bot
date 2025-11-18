@@ -21,3 +21,10 @@ type ErrorResponse struct {
 	Success bool   `json:"success"`
 	Error   string `json:"error"`
 }
+
+type UploadResponse struct {
+	Success  bool    `json:"success"`
+	FileID   string  `json:"file_id"`
+	Filename string  `json:"filename"`
+	SizeMB   float64 `json:"size_mb"`
+}
