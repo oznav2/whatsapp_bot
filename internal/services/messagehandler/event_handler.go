@@ -19,6 +19,14 @@ import (
 
 // handleMessage uses the new command system
 func (h *WhatsMeowEventHandler) handleMessage(msg *waProto.Message, msgInfo types.MessageInfo) {
+	// Check if this is an audio message that should be transcribed
+	if shouldTranscribe(msg, msgInfo.Chat, h.transcriptionState) {
+		if err := h.handleAudioTranscription(msg, msgInfo); err != nil {
+			fmt.Printf("Audio transcription error: %v\n", err)
+		}
+		return // Don't process as command
+	}
+
 	text := extractText(msg)
 	var cmdName string
 	var args []string
