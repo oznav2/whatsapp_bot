@@ -10,6 +10,7 @@ import (
 	"github.com/asparkoffire/whatsapp-livetranslate-go/internal/handlers"
 	"github.com/asparkoffire/whatsapp-livetranslate-go/internal/handlers/admin"
 	"github.com/asparkoffire/whatsapp-livetranslate-go/internal/handlers/fun"
+	transcriptionhandlers "github.com/asparkoffire/whatsapp-livetranslate-go/internal/handlers/transcription"
 	"github.com/asparkoffire/whatsapp-livetranslate-go/internal/handlers/translation"
 	"github.com/asparkoffire/whatsapp-livetranslate-go/internal/handlers/utility"
 	waProto "go.mau.fi/whatsmeow/proto/waE2E"
@@ -148,8 +149,17 @@ func (h *WhatsMeowEventHandler) InitializeCommands() error {
 		return fmt.Errorf("failed to register translation commands: %w", err)
 	}
 
+	// Register transcription commands
+	if err := registry.Register(transcriptionhandlers.NewTEnableCommand()); err != nil {
+		return fmt.Errorf("failed to register tenable command: %w", err)
+	}
+
+	if err := registry.Register(transcriptionhandlers.NewTDisableCommand()); err != nil {
+		return fmt.Errorf("failed to register tdisable command: %w", err)
+	}
+
 	// Apply middleware to commands that need owner permissions
-	ownerCommands := []string{"ping", "setmodel", "settemp", "image", "meme", "randmoji", "haha", "download", "hibp"}
+	ownerCommands := []string{"ping", "setmodel", "settemp", "image", "meme", "randmoji", "haha", "download", "hibp", "tenable", "tdisable"}
 	for _, cmdName := range ownerCommands {
 		if cmd, exists := registry.Get(cmdName); exists {
 			wrappedCmd := framework.WithMiddleware(cmd, framework.RequireOwner())
