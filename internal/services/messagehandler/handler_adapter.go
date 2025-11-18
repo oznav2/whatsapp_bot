@@ -7,6 +7,7 @@ import (
 	framework "github.com/asparkoffire/whatsapp-livetranslate-go/internal/cmdframework"
 	"github.com/asparkoffire/whatsapp-livetranslate-go/internal/services"
 	"github.com/asparkoffire/whatsapp-livetranslate-go/internal/services/memegenerator"
+	"github.com/asparkoffire/whatsapp-livetranslate-go/internal/services/transcription"
 	"github.com/asparkoffire/whatsapp-livetranslate-go/internal/utils"
 	"go.mau.fi/whatsmeow"
 	waProto "go.mau.fi/whatsmeow/proto/waE2E"
@@ -219,6 +220,14 @@ func (m *MemeGeneratorAdapter) GetRandomMeme(ctx context.Context, subreddit stri
 	}
 
 	return &framework.MemeResponse{Memes: memes}, nil
+}
+
+func (a *HandlerAdapter) GetStateManager() *transcription.StateManager {
+	return a.transcriptionState
+}
+
+func (a *HandlerAdapter) GetTranscriptionService() *transcription.Service {
+	return a.transcriptionSvc
 }
 
 // LangDetectorAdapter adapts the language detector to the interface

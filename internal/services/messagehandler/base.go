@@ -8,28 +8,40 @@ import (
 	framework "github.com/asparkoffire/whatsapp-livetranslate-go/internal/cmdframework"
 	"github.com/asparkoffire/whatsapp-livetranslate-go/internal/services"
 	"github.com/asparkoffire/whatsapp-livetranslate-go/internal/services/memegenerator"
+	"github.com/asparkoffire/whatsapp-livetranslate-go/internal/services/transcription"
 	"github.com/mdp/qrterminal/v3"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/types/events"
 )
 
 type WhatsMeowEventHandler struct {
-	client          *whatsmeow.Client
-	detector        services.LangDetectService
-	translator      services.TranslateService
-	imageGenerator  services.ImageGenerator
-	memeGenerator   *memegenerator.MemeGenerator
-	commandRegistry *framework.Registry
+	client             *whatsmeow.Client
+	detector           services.LangDetectService
+	translator         services.TranslateService
+	imageGenerator     services.ImageGenerator
+	memeGenerator      *memegenerator.MemeGenerator
+	commandRegistry    *framework.Registry
+	transcriptionState *transcription.StateManager
+	transcriptionSvc   *transcription.Service
 }
 
-func NewWhatsMeowEventHandler(client *whatsmeow.Client, detector services.LangDetectService, translator services.TranslateService, imageGenerator services.ImageGenerator) (*WhatsMeowEventHandler, error) {
+func NewWhatsMeowEventHandler(
+	client *whatsmeow.Client,
+	detector services.LangDetectService,
+	translator services.TranslateService,
+	imageGenerator services.ImageGenerator,
+	transcriptionState *transcription.StateManager,
+	transcriptionSvc *transcription.Service,
+) (*WhatsMeowEventHandler, error) {
 	handler := &WhatsMeowEventHandler{
-		client:          client,
-		detector:        detector,
-		translator:      translator,
-		imageGenerator:  imageGenerator,
-		memeGenerator:   memegenerator.NewMemeGenerator(),
-		commandRegistry: framework.NewRegistry(),
+		client:             client,
+		detector:           detector,
+		translator:         translator,
+		imageGenerator:     imageGenerator,
+		memeGenerator:      memegenerator.NewMemeGenerator(),
+		commandRegistry:    framework.NewRegistry(),
+		transcriptionState: transcriptionState,
+		transcriptionSvc:   transcriptionSvc,
 	}
 
 	// Initialize all commands

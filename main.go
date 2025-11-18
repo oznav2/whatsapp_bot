@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"github.com/asparkoffire/whatsapp-livetranslate-go/internal/services"
 	"github.com/asparkoffire/whatsapp-livetranslate-go/internal/services/gemini"
 	"github.com/asparkoffire/whatsapp-livetranslate-go/internal/services/messagehandler"
+	"github.com/asparkoffire/whatsapp-livetranslate-go/internal/services/transcription"
 	_ "github.com/mattn/go-sqlite3"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/store/sqlstore"
@@ -20,11 +22,18 @@ import (
 
 func main() {
 	ctx := context.Background()
-	container, err := sqlstore.New(ctx, "sqlite3", "file:/data/auth.db?_foreign_keys=on", nil)
+
+	// Open database for both whatsmeow store and transcription
+	dbPath := "file:/data/auth.db?_foreign_keys=on"
+	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
-		log.Fatalf("error while opening a database connection: %v\n", err)
+		log.Fatalf("error while opening database: %v\n", err)
 		return
 	}
+	defer db.Close()
+
+	// Create whatsmeow container with the existing database
+	container := sqlstore.NewWithDB(db, "sqlite3", nil)
 
 	deviceStore, err := container.GetFirstDevice(ctx)
 	if err != nil {
@@ -39,8 +48,19 @@ func main() {
 	// Initialize the language detector with supported languages
 	detector := services.NewLinguaLangDetectService(constants.SupportedLanguages)
 
+	// Initialize transcription services using the same database connection
+	transcriptionState := transcription.NewStateManager(db)
+	transcriptionSvc := transcription.NewService(config.AppConfig.TranscribeServiceURL)
+
 	// connect to the client and event handler
-	evtHandler, err := messagehandler.NewWhatsMeowEventHandler(client, detector, translator, imageGenerator)
+	evtHandler, err := messagehandler.NewWhatsMeowEventHandler(
+		client,
+		detector,
+		translator,
+		imageGenerator,
+		transcriptionState,
+		transcriptionSvc,
+	)
 	if err != nil {
 		log.Fatalf("error while setting up the event handler: %v\n", err)
 		return
