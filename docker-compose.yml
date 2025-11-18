@@ -8,9 +8,12 @@ services:
       IS_DOCKER: "true"
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       HIBP_TOKEN: ${HIBP_TOKEN}
+      TRANSCRIBE_SERVICE_URL: ${TRANSCRIBE_SERVICE_URL:-http://host.docker.internal:8009}
     volumes:
       - whatsapp-go:/data
       - firefox-config:/root
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
   firefox:
     image: jlesage/firefox:latest
     container_name: firefox
