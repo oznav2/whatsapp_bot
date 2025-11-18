@@ -99,9 +99,10 @@ func (s *Service) TranscribeAudio(ctx context.Context, audioPath, language, mode
 		return nil, fmt.Errorf("failed to upload audio: %w", err)
 	}
 
-	// Step 2: Construct the URL for the uploaded file
-	// The service expects a URL it can download from
-	fileURL := s.baseURL + "/uploads/" + uploadResp.FileID
+	// Step 2: Construct the file path on the transcription service's filesystem
+	// The uploaded file is stored at /app/uploads/ in the service container
+	// Use the file_id directly as the path since it already includes the extension
+	filePath := "/app/uploads/" + uploadResp.FileID
 
 	// Determine endpoint based on model
 	endpoint := "/api/transcribe/whisper-ivrit"
@@ -111,9 +112,9 @@ func (s *Service) TranscribeAudio(ctx context.Context, audioPath, language, mode
 		endpoint = "/api/transcribe/whisper"
 	}
 
-	// Step 3: Create JSON request body with the file URL
+	// Step 3: Create JSON request body with the file path
 	requestBody := map[string]interface{}{
-		"url":      fileURL,
+		"url":      filePath,
 		"language": language,
 	}
 
