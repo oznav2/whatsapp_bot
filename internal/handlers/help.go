@@ -25,8 +25,8 @@ func (c *HelpCommand) Execute(ctx *framework.Context) error {
 func (c *HelpCommand) Metadata() *framework.Metadata {
 	return &framework.Metadata{
 		Name:        "help",
-		Description: "Show available commands",
-		Category:    "Utility",
+		Description: "הצג פקודות זמינות",
+		Category:    "כלי שירות",
 		Usage:       "/help [command]",
 		Examples: []string{
 			"/help",

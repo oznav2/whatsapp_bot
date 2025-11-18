@@ -25,8 +25,8 @@ func (c *PingCommand) Execute(ctx *framework.Context) error {
 func (c *PingCommand) Metadata() *framework.Metadata {
 	return &framework.Metadata{
 		Name:         "ping",
-		Description:  "Check bot responsiveness",
-		Category:     "Utility",
+		Description:  "בדוק תגובתיות הבוט",
+		Category:     "כלי שירות",
 		Usage:        "/ping",
 		RequireOwner: true,
 	}

@@ -24,6 +24,8 @@ func NewTranslateCommand(langCode string) *TranslateCommand {
 }
 
 func (c *TranslateCommand) Execute(ctx *framework.Context) error {
+	fmt.Printf("[TRANSLATE] Command: /%s, Target: %s\n", c.langCode, c.targetLang.String())
+	
 	// Handle media caption translation
 	if c.handleMediaCaptionTranslation(ctx) {
 		return nil
@@ -45,8 +47,8 @@ func (c *TranslateCommand) Metadata() *framework.Metadata {
 	langName := constants.SupportedLanguages[c.langCode]
 	return &framework.Metadata{
 		Name:        c.langCode,
-		Description: fmt.Sprintf("Translate to %s", langName),
-		Category:    "Translation",
+		Description: fmt.Sprintf("תרגם ל%s", langName),
+		Category:    "תרגום",
 		Usage:       fmt.Sprintf("/%s <text>", c.langCode),
 		Examples: []string{
 			fmt.Sprintf("/%s Hello world", c.langCode),

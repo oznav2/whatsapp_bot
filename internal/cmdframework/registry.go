@@ -121,7 +121,7 @@ func (r *Registry) GenerateHelp() string {
 	defer r.mu.RUnlock()
 
 	var sb strings.Builder
-	sb.WriteString("📋 *Available Commands*\n\n")
+	sb.WriteString("📋 *פקודות זמינות*\n\n")
 
 	categories := r.GetCategories()
 
@@ -163,7 +163,7 @@ func (r *Registry) GenerateHelp() string {
 	}
 
 	if len(uncategorized) > 0 {
-		sb.WriteString("*Other Commands*\n")
+		sb.WriteString("*פקודות אחרות*\n")
 		sort.Strings(uncategorized)
 		for _, name := range uncategorized {
 			cmd := r.commands[name]
@@ -185,36 +185,36 @@ func (r *Registry) GenerateCommandHelp(cmdName string) string {
 
 	cmd, exists := r.Get(cmdName)
 	if !exists {
-		return fmt.Sprintf("Command '%s' not found", cmdName)
+		return fmt.Sprintf("פקודה '%s' לא נמצאה", cmdName)
 	}
 
 	meta := cmd.Metadata()
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("*Command:* */%s*\n", meta.Name))
+	sb.WriteString(fmt.Sprintf("*פקודה:* */%s*\n", meta.Name))
 
 	if len(meta.Aliases) > 0 {
 		aliases := make([]string, len(meta.Aliases))
 		for i, alias := range meta.Aliases {
 			aliases[i] = fmt.Sprintf("*/%s*", alias)
 		}
-		sb.WriteString(fmt.Sprintf("*Aliases:* %s\n", strings.Join(aliases, ", ")))
+		sb.WriteString(fmt.Sprintf("*כינויים:* %s\n", strings.Join(aliases, ", ")))
 	}
 
 	if meta.Description != "" {
-		sb.WriteString(fmt.Sprintf("*Description:* %s\n", meta.Description))
+		sb.WriteString(fmt.Sprintf("*תיאור:* %s\n", meta.Description))
 	}
 
 	if meta.Usage != "" {
-		sb.WriteString(fmt.Sprintf("*Usage:* `%s`\n", meta.Usage))
+		sb.WriteString(fmt.Sprintf("*שימוש:* `%s`\n", meta.Usage))
 	}
 
 	if len(meta.Parameters) > 0 {
-		sb.WriteString("\n*Parameters:*\n")
+		sb.WriteString("\n*פרמטרים:*\n")
 		for _, param := range meta.Parameters {
 			sb.WriteString(fmt.Sprintf("• `%s`", param.Name))
 			if param.Required {
-				sb.WriteString(" *(required)*")
+				sb.WriteString(" *(חובה)*")
 			}
 			if param.Description != "" {
 				sb.WriteString(fmt.Sprintf(" - %s", param.Description))
@@ -224,14 +224,14 @@ func (r *Registry) GenerateCommandHelp(cmdName string) string {
 	}
 
 	if len(meta.Examples) > 0 {
-		sb.WriteString("\n*Examples:*\n")
+		sb.WriteString("\n*דוגמאות:*\n")
 		for _, example := range meta.Examples {
 			sb.WriteString(fmt.Sprintf("• `%s`\n", example))
 		}
 	}
 
 	if meta.RequireOwner {
-		sb.WriteString("\n⚠️ *This command requires owner permissions*")
+		sb.WriteString("\n⚠️ *פקודה זו דורשת הרשאות בעלים*")
 	}
 
 	return sb.String()

@@ -132,8 +132,8 @@ func (c *SedCommand) Execute(ctx *framework.Context) error {
 func (c *SedCommand) Metadata() *framework.Metadata {
 	return &framework.Metadata{
 		Name:        "s",
-		Description: "Applies a sed-like substitution to a quoted message. Flags: g - global, i - ignore case, c - strikethrough original text",
-		Category:    "Utility",
+		Description: "מבצע החלפת טקסט בהודעה מצוטטת. דגלים: g - גלובלי, i - התעלם מגדול/קטן, c - קו חוצה על הטקסט המקורי",
+		Category:    "כלי שירות",
 		Usage:       "s/pattern/replacement/flags or /s s/pattern/replacement/flags",
 	}
 }

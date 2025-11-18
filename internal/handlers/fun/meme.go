@@ -55,8 +55,8 @@ func (c *MemeCommand) Execute(ctx *framework.Context) error {
 func (c *MemeCommand) Metadata() *framework.Metadata {
 	return &framework.Metadata{
 		Name:         "meme",
-		Description:  "Get a random meme",
-		Category:     "Fun",
+		Description:  "קבל מם אקראי",
+		Category:     "בידור",
 		Usage:        "/meme [subreddit]",
 		RequireOwner: true,
 		Examples: []string{

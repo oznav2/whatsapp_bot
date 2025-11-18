@@ -8,6 +8,7 @@ import (
 	"github.com/asparkoffire/whatsapp-livetranslate-go/internal/services/transcription"
 	waProto "go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/types"
+	"google.golang.org/protobuf/proto"
 )
 
 func shouldTranscribe(msg *waProto.Message, chatJID types.JID, stateManager *transcription.StateManager) bool {
@@ -27,6 +28,32 @@ func shouldTranscribe(msg *waProto.Message, chatJID types.JID, stateManager *tra
 
 func (h *WhatsMeowEventHandler) handleAudioTranscription(msg *waProto.Message, msgInfo types.MessageInfo) error {
 	ctx := context.Background()
+
+	// Send initial "Transcribing..." status message
+	senderJID := msgInfo.Chat
+	if msgInfo.Chat.Server == "g.us" {
+		// In groups, use appropriate participant JID
+		senderJID = types.NewJID(msgInfo.Chat.User, "s.whatsapp.net")
+	}
+
+	// Create the initial "Transcribing..." message as a reply to the audio
+	initialMsg := &waProto.Message{
+		ExtendedTextMessage: &waProto.ExtendedTextMessage{
+			Text: proto.String("🎤 Transcribing..."),
+			ContextInfo: &waProto.ContextInfo{
+				StanzaID:    proto.String(msgInfo.ID),
+				Participant: proto.String(senderJID.String()),
+			},
+		},
+	}
+
+	resp, err := h.client.SendMessage(ctx, msgInfo.Chat, initialMsg)
+	if err != nil {
+		fmt.Printf("Failed to send 'Transcribing...' message: %v\n", err)
+		return nil // Don't fail the whole operation
+	}
+
+	fmt.Printf("Sent 'Transcribing...' status message (ID: %s)\n", resp.ID)
 
 	// Download audio using whatsmeow's client.Download() (PROVEN PATTERN)
 	audioMsg := msg.GetAudioMessage()
@@ -69,13 +96,45 @@ func (h *WhatsMeowEventHandler) handleAudioTranscription(msg *waProto.Message, m
 		return nil
 	}
 
-	// Send transcription as reply
-	adapter := NewHandlerAdapter(h)
+	// DEBUG: Log the full result
+	fmt.Printf("[DEBUG] Transcription result for chat %s:\n", msgInfo.Chat.String())
+	fmt.Printf("[DEBUG]   Success: %v\n", result.Success)
+	fmt.Printf("[DEBUG]   Text length: %d\n", len(result.Text))
+	fmt.Printf("[DEBUG]   Text: %q\n", result.Text)
+	fmt.Printf("[DEBUG]   Model: %s\n", result.Model)
+	fmt.Printf("[DEBUG]   Language: %s\n", result.Language)
+	fmt.Printf("[DEBUG]   DetectedLanguage: %s\n", result.DetectedLanguage)
+
+	// Build the final transcription message
 	response := fmt.Sprintf("🎤 *Transcription:*\n\n%s", result.Text)
 	if result.DetectedLanguage != "" && result.DetectedLanguage != language {
 		response += fmt.Sprintf("\n\n🌐 Detected language: %s", result.DetectedLanguage)
 	}
 
-	adapter.SendResponse(msgInfo, response)
+	// DEBUG: Log the response being sent
+	fmt.Printf("[DEBUG] Editing status message with transcription (length: %d)\n", len(response))
+
+	// Edit the "Transcribing..." message with the actual transcription
+	// Create the updated message with the same context info
+	updatedMsg := &waProto.Message{
+		ExtendedTextMessage: &waProto.ExtendedTextMessage{
+			Text: proto.String(response),
+			ContextInfo: &waProto.ContextInfo{
+				StanzaID:    proto.String(msgInfo.ID),
+				Participant: proto.String(senderJID.String()),
+			},
+		},
+	}
+
+	editMsg := h.client.BuildEdit(msgInfo.Chat, resp.ID, updatedMsg)
+	_, err = h.client.SendMessage(ctx, msgInfo.Chat, editMsg)
+	if err != nil {
+		fmt.Printf("[DEBUG] Failed to edit transcription message: %v\n", err)
+		return fmt.Errorf("failed to edit transcription message: %w", err)
+	}
+
+	// DEBUG: Confirm send completed
+	fmt.Printf("[DEBUG] Transcription message edited successfully for chat %s\n", msgInfo.Chat.String())
+
 	return nil
 }

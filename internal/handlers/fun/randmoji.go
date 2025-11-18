@@ -51,8 +51,8 @@ func (c *RandmojiCommand) Execute(ctx *framework.Context) error {
 func (c *RandmojiCommand) Metadata() *framework.Metadata {
 	return &framework.Metadata{
 		Name:         "randmoji",
-		Description:  "Display random emojis",
-		Category:     "Fun",
+		Description:  "הצג אימוג'ים אקראיים",
+		Category:     "בידור",
 		Usage:        "/randmoji [duration]",
 		RequireOwner: true,
 		Examples: []string{

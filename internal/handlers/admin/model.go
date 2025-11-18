@@ -32,8 +32,8 @@ func (c *SetModelCommand) Execute(ctx *framework.Context) error {
 func (c *SetModelCommand) Metadata() *framework.Metadata {
 	return &framework.Metadata{
 		Name:         "setmodel",
-		Description:  "Set the translation AI model",
-		Category:     "Admin",
+		Description:  "הגדר מודל AI לתרגום",
+		Category:     "ניהול",
 		Usage:        "/setmodel <model-id>",
 		RequireOwner: true,
 		Examples: []string{
@@ -66,8 +66,8 @@ func (c *GetModelCommand) Execute(ctx *framework.Context) error {
 func (c *GetModelCommand) Metadata() *framework.Metadata {
 	return &framework.Metadata{
 		Name:         "getmodel",
-		Description:  "Get current translation model",
-		Category:     "Admin",
+		Description:  "הצג מודל תרגום נוכחי",
+		Category:     "ניהול",
 		Usage:        "/getmodel",
 		RequireOwner: false,
 	}
@@ -103,8 +103,8 @@ func (c *SetTempCommand) Execute(ctx *framework.Context) error {
 func (c *SetTempCommand) Metadata() *framework.Metadata {
 	return &framework.Metadata{
 		Name:         "settemp",
-		Description:  "Set AI temperature (0.0-1.0)",
-		Category:     "Admin",
+		Description:  "הגדר טמפרטורת AI (0.0-1.0)",
+		Category:     "ניהול",
 		Usage:        "/settemp <temperature>",
 		RequireOwner: true,
 		Examples: []string{
@@ -147,8 +147,8 @@ func (c *GetTempCommand) Execute(ctx *framework.Context) error {
 func (c *GetTempCommand) Metadata() *framework.Metadata {
 	return &framework.Metadata{
 		Name:         "gettemp",
-		Description:  "Get current AI temperature",
-		Category:     "Admin",
+		Description:  "הצג טמפרטורת AI נוכחית",
+		Category:     "ניהול",
 		Usage:        "/gettemp",
 		RequireOwner: false,
 	}

@@ -243,7 +243,7 @@ func (c *DownloadCommand) Execute(ctx *framework.Context) error {
 		fmt.Printf("[DOWNLOAD] File exceeds 16MB limit, sending as document...\n")
 
 		// Prepare caption with size info
-		caption := fmt.Sprintf("📥 Downloaded from: %s\n\n📎 File is %.1f MB (exceeds 16MB limit for media)", url, float64(len(data))/(1024*1024))
+		caption := fmt.Sprintf("📥 הורד מ: %s\n\n📎 File is %.1f MB (exceeds 16MB limit for media)", url, float64(len(data))/(1024*1024))
 
 		// Upload as document with proper filename to preserve extension
 		filename := filepath.Base(outputFile)
@@ -271,7 +271,7 @@ func (c *DownloadCommand) Execute(ctx *framework.Context) error {
 	}
 
 	// Prepare caption
-	caption := fmt.Sprintf("📥 Downloaded from: %s", url)
+	caption := fmt.Sprintf("📥 הורד מ: %s", url)
 
 	// Send based on type using the media uploader's UploadAndSend methods
 	uploader := framework.NewMediaUploader(ctx.Handler.GetClient())
@@ -327,8 +327,8 @@ func (c *DownloadCommand) Metadata() *framework.Metadata {
 	return &framework.Metadata{
 		Name:        "download",
 		Aliases:     []string{"dl", "ytdl"},
-		Description: "Download media from various platforms",
-		Category:    "Utility",
+		Description: "הורד מדיה מפלטפורמות שונות",
+		Category:    "כלי שירות",
 		Usage:       "/download <url>",
 		Examples: []string{
 			"/download https://www.youtube.com/watch?v=...",

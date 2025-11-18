@@ -56,8 +56,8 @@ func (c *HIBPCommand) Execute(ctx *framework.Context) error {
 func (c *HIBPCommand) Metadata() *framework.Metadata {
 	return &framework.Metadata{
 		Name:        "hibp",
-		Description: "Search for data breaches and compromised accounts using leakosintapi.com",
-		Category:    "Utility",
+		Description: "חפש דליפות מידע וחשבונות פגועים באמצעות leakosintapi.com",
+		Category:    "כלי שירות",
 		Usage:       "/hibp <phone_or_identifier>",
 		Examples: []string{
 			"/hibp +912345678901",

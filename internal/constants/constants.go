@@ -8,8 +8,8 @@ var (
 	SupportedLanguages = map[string]lingua.Language{
 		"en": lingua.English,
 		"ru": lingua.Russian,
-		"pa": lingua.Punjabi,
-		"hi": lingua.Hindi,
+		"he": lingua.Hebrew,
+		"ar": lingua.Arabic,
 	}
 )
 

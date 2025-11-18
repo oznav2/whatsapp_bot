@@ -41,8 +41,8 @@ func (c *ImageCommand) Metadata() *framework.Metadata {
 	return &framework.Metadata{
 		Name:         "image",
 		Aliases:      []string{"img", "generate"},
-		Description:  "Generate an AI image from prompt",
-		Category:     "Fun",
+		Description:  "צור תמונה באמצעות AI",
+		Category:     "בידור",
 		Usage:        "/image <prompt>",
 		RequireOwner: true,
 		Examples: []string{

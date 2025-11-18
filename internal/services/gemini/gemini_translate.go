@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -81,6 +82,8 @@ func (g *geminiTranslateService) TranslateText(text string, sourceLang lingua.La
 }
 
 func (g *geminiTranslateService) executeTranslation(text string, sourceLang lingua.Language, targetLang lingua.Language) (string, error) {
+	fmt.Printf("[GEMINI] Translating from %s to %s: %s\n", sourceLang.String(), targetLang.String(), text)
+	
 	// Construct the Gemini URL with the model ID, API method, and API key.
 	geminiUrl := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:%s?key=%s", g.modelID, g.generateContentAPI, g.geminiAPIKey)
 
@@ -90,12 +93,14 @@ func (g *geminiTranslateService) executeTranslation(text string, sourceLang ling
 	// Marshal the payload into JSON.
 	b, err := json.MarshalIndent(payload, "", "    ")
 	if err != nil {
+		fmt.Printf("[GEMINI] JSON marshal error: %v\n", err)
 		return "", err
 	}
 
 	// Create the HTTP request.
 	req, err := http.NewRequest(http.MethodPost, geminiUrl, bytes.NewReader(b))
 	if err != nil {
+		fmt.Printf("[GEMINI] HTTP request creation error: %v\n", err)
 		return "", err
 	}
 
@@ -105,19 +110,23 @@ func (g *geminiTranslateService) executeTranslation(text string, sourceLang ling
 	// Execute the request.
 	res, err := g.client.Do(req)
 	if err != nil {
+		fmt.Printf("[GEMINI] HTTP request execution error: %v\n", err)
 		return "", err
 	}
 	defer res.Body.Close()
 
 	// Check if the response status code is between 200 and 299.
 	if res.StatusCode < 200 || res.StatusCode > 299 {
-		return "", fmt.Errorf("error: received non-success status code %d", res.StatusCode)
+		bodyBytes, _ := io.ReadAll(res.Body)
+		fmt.Printf("[GEMINI] API error (status %d): %s\n", res.StatusCode, string(bodyBytes))
+		return "", fmt.Errorf("error: received non-success status code %d: %s", res.StatusCode, string(bodyBytes))
 	}
 
 	var texts []string
 
 	var responses []gemini.GeminiResponses
 	if err := json.NewDecoder(res.Body).Decode(&responses); err != nil {
+		fmt.Printf("[GEMINI] Response decode error: %v\n", err)
 		return "", err
 	}
 
@@ -130,11 +139,15 @@ func (g *geminiTranslateService) executeTranslation(text string, sourceLang ling
 	}
 
 	final := strings.Join(texts, "")
+	fmt.Printf("[GEMINI] Raw response: %s\n", final)
+	
 	var output gemini.OutputText
 	if err := json.Unmarshal([]byte(final), &output); err != nil {
+		fmt.Printf("[GEMINI] Output unmarshal error: %v\n", err)
 		return "", err
 	}
 
+	fmt.Printf("[GEMINI] Translation successful: %s\n", output.Output)
 	// Return the translated output.
 	return output.Output, nil
 }

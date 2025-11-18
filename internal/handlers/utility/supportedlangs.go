@@ -51,8 +51,8 @@ func (c *SupportedLangsCommand) Metadata() *framework.Metadata {
 	return &framework.Metadata{
 		Name:        "supportedlangs",
 		Aliases:     []string{"langs", "languages"},
-		Description: "Show supported translation languages",
-		Category:    "Utility",
+		Description: "הצג שפות תרגום נתמכות",
+		Category:    "כלי שירות",
 		Usage:       "/supportedlangs",
 	}
 }

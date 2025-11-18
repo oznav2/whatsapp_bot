@@ -1,0 +1,116 @@
+{
+  "memories": [
+    {
+      "id": "mem_1763417478205_0l9j4dxap",
+      "content": "Created CLAUDE.md for whatsapp-livetranslate-2.0 repository. Key architecture points documented:\n- Command framework using interface pattern (Command interface with Execute + Metadata)\n- Commands organized by category in internal/handlers/ (admin, fun, translation, utility)\n- Service injection via Context.Handler interface\n- Owner-only commands use middleware wrapping pattern\n- Translation commands auto-registered for all supported languages\n- Special handling for sed command (s/) and language code fallback\n- Uses whatsmeow for WhatsApp integration, Gemini for AI features\n- Environment variable: GEMINI_API_KEY (not GEMINI_KEY)",
+      "type": "config",
+      "tags": [
+        "config",
+        "whatsapp-bot",
+        "architecture",
+        "go",
+        "documentation"
+      ],
+      "timestamp": "2025-11-17T22:11:18.205Z",
+      "accessCount": 0,
+      "lastAccessed": "2025-11-17T22:11:18.205Z",
+      "lastVerified": "2025-11-17T22:11:18.205Z",
+      "status": "fresh"
+    },
+    {
+      "id": "mem_1763420007275_ksocjmwmo",
+      "content": "Transcription feature architecture design for WhatsApp bot:\n- Use REST API at localhost:8009 (/api/transcribe/whisper-ivrit for Hebrew)\n- Download audio via whatsmeow client.Download(), upload to transcribe container\n- Per-chat enable/disable using SQLite table (transcription_settings)\n- Commands: /tenable, /tdisable  \n- Auto-transcribe in handleMessage() before command routing\n- Default language: Hebrew (he), use existing LangDetector for smart detection\n- Components: TranscriptionService (HTTP client), TranscriptionStateManager (SQLite), modified event handler\n- Error handling: silent fail if service down, user-friendly messages for other errors",
+      "type": "error",
+      "tags": [
+        "error",
+        "api",
+        "whatsapp-bot",
+        "transcription",
+        "architecture",
+        "design"
+      ],
+      "timestamp": "2025-11-17T22:53:27.275Z",
+      "accessCount": 0,
+      "lastAccessed": "2025-11-17T22:53:27.275Z",
+      "lastVerified": "2025-11-17T22:53:27.275Z",
+      "status": "fresh"
+    },
+    {
+      "id": "mem_1763420240448_g89677uhj",
+      "content": "Created comprehensive audio transcription implementation plan for WhatsApp bot at docs/plans/2025-01-18-audio-transcription.md. Plan includes:\n- 13 tasks across 8 phases following TDD (RED-GREEN-REFACTOR)\n- Phase 1: Database schema and state management (SQLite)\n- Phase 2: HTTP client for transcription service\n- Phase 3: Audio download integration with whatsmeow\n- Phase 4: /tenable and /tdisable commands\n- Phase 5: Event handler integration (audio processing before command routing)\n- Phase 6: Configuration and documentation\n- Phase 7: Integration testing\n- Phase 8: Final build and deployment\nEach task has exact file paths, complete code, test-first approach, and commit messages. No breaking changes to existing functionality.",
+      "type": "config",
+      "tags": [
+        "config",
+        "database",
+        "testing",
+        "deployment",
+        "implementation-plan",
+        "transcription",
+        "whatsapp-bot",
+        "tdd"
+      ],
+      "timestamp": "2025-11-17T22:57:20.448Z",
+      "accessCount": 0,
+      "lastAccessed": "2025-11-17T22:57:20.448Z",
+      "lastVerified": "2025-11-17T22:57:20.448Z",
+      "status": "fresh"
+    },
+    {
+      "id": "mem_1763420730932_76gmrleq2",
+      "content": "Dependency analysis completed for audio transcription feature:\n\n**No new dependencies needed!** Current bot already has:\n- whatsmeow (has client.Download() for audio)\n- go-sqlite3 (for state management)\n- godotenv (for config)\n\n**Proven patterns from reference repos:**\n1. Audio download: client.Download(audioMessage) returns []byte directly\n2. PTT detection: msg.GetAudioMessage().GetPTT() checks for voice notes\n3. Temp files: os.CreateTemp(\"\", \"whatsapp_audio_*.ogg\")\n4. Database: Use existing container.DB from sqlstore.New()\n5. State schema: Simple chat_jid + enabled boolean\n6. Error handling: Silent fail for service unavailable (log only)\n\n**Plan updates needed:**\n- Remove ClientInterface.DownloadAudio (use client.Download directly)\n- Pass container.DB to StateManager instead of creating new connection\n- Add PTT check for voice message detection\n- Simplify integration (no new deps)",
+      "type": "config",
+      "tags": [
+        "config",
+        "go",
+        "database",
+        "dependencies",
+        "analysis",
+        "patterns",
+        "transcription"
+      ],
+      "timestamp": "2025-11-17T23:05:30.932Z",
+      "accessCount": 0,
+      "lastAccessed": "2025-11-17T23:05:30.932Z",
+      "lastVerified": "2025-11-17T23:05:30.932Z",
+      "status": "fresh"
+    },
+    {
+      "id": "mem_1763420867600_ckkg5frkn",
+      "content": "Updated audio transcription implementation plan with proven patterns from reference repositories:\n\n**Key Updates:**\n1. NO new dependencies needed - uses existing whatsmeow, go-sqlite3, godotenv\n2. Audio download: Use client.Download(audioMsg) directly (returns []byte)\n3. Database: Use container.DB from sqlstore.New() (already initialized in main.go)\n4. PTT detection: Added isPTTVoiceNote() helper to distinguish voice notes from audio files\n5. Temp files: Use os.CreateTemp(\"\", \"whatsapp_audio_*.ogg\") pattern\n6. Error handling: Silent fail for service unavailable (log only, don't spam user)\n7. Simplified Phase 3: Removed ClientInterface.DownloadAudio (use client.Download directly)\n\n**Removed Complexity:**\n- No new database connection (reuse container.DB)\n- No wrapper methods for audio download\n- No additional middleware layers\n\n**Added from Reference Repos:**\n- PTT (Push-To-Talk) detection for voice messages\n- Proven temp file handling pattern\n- Silent error handling for transcription service failures\n\nPlan saved to: docs/plans/2025-01-18-audio-transcription.md",
+      "type": "warning",
+      "tags": [
+        "warning",
+        "go",
+        "database",
+        "plan-update",
+        "transcription",
+        "implementation",
+        "proven-patterns"
+      ],
+      "timestamp": "2025-11-17T23:07:47.600Z",
+      "accessCount": 0,
+      "lastAccessed": "2025-11-17T23:07:47.600Z",
+      "lastVerified": "2025-11-17T23:07:47.600Z",
+      "status": "fresh"
+    },
+    {
+      "id": "mem_1763422118501_p30tqr70v",
+      "content": "Final implementation plan updated with VibeGram transcription service details:\n\n**VibeGram Service (v5.0) Key Facts:**\n- Modular FastAPI app with 17 modules\n- Port 8009 (configurable)\n- Models: ivrit-ct2 (Hebrew), whisper-v3-turbo (multilingual), deepgram (cloud)\n- REST API: POST /api/transcribe/whisper-ivrit with multipart file upload\n- Features: diarization, deduplication, summarization, audio caching (SHA256)\n- Handles all audio processing internally (FFmpeg, chunking, model loading)\n\n**Integration Strategy:**\n- Use REST API (not WebSocket) for simplicity\n- Bot downloads audio from WhatsApp (client.Download)\n- Upload OGG file to VibeGram via multipart/form-data\n- VibeGram returns JSON with transcription text\n- Bot sends text back to WhatsApp\n\n**Why This Works:**\n- VibeGram already handles complex audio processing\n- Bot only needs to bridge WhatsApp ↔ VibeGram\n- Clean separation of concerns\n- VibeGram's caching reduces duplicate work\n\nPlan location: docs/plans/2025-01-18-audio-transcription.md",
+      "type": "general",
+      "tags": [
+        "general",
+        "api",
+        "vibegram",
+        "integration",
+        "plan-final",
+        "transcription"
+      ],
+      "timestamp": "2025-11-17T23:28:38.501Z",
+      "accessCount": 0,
+      "lastAccessed": "2025-11-17T23:28:38.501Z",
+      "lastVerified": "2025-11-17T23:28:38.501Z",
+      "status": "fresh"
+    }
+  ],
+  "lastUpdated": "2025-11-17T23:28:38.501Z"
+}
