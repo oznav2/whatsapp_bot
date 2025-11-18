@@ -17,6 +17,7 @@ A powerful WhatsApp bot that provides real-time translation, media downloading, 
 
 ### Core Capabilities
 - **🌐 Real-time Translation**: Translate messages between 20+ languages using Google's Gemini AI
+- **🎤 Audio Transcription**: Automatic transcription of voice messages with per-chat controls
 - **📥 Media Downloader**: Download videos and images from YouTube, Instagram, Twitter, and more
 - **🤖 AI-Powered**: Leverages Google Gemini 2.0 for translation and image generation
 - **🎮 Entertainment**: Fun commands including memes, random emojis, and more
@@ -100,6 +101,7 @@ go build -o whatsapp-livetranslate .
 | `YOUTUBE_VISITOR_DATA` | YouTube visitor data for bypassing some restrictions | No |
 | `COOKIES_PATH` | Path to cookies.txt for non-YouTube sites (Instagram, Twitter, etc.) | No |
 | `HIBP_TOKEN` | API token for Have I Been Pwned dark web search (owner only) | No |
+| `TRANSCRIBE_SERVICE_URL` | URL for audio transcription service (defaults to http://localhost:8009) | No |
 
 ### YouTube Visitor Data (Optional)
 
@@ -174,6 +176,10 @@ This helps with:
 - `/getmodel` - Show current AI model
 - `/settemp <value>` - Set AI temperature
 - `/gettemp` - Show current temperature
+
+### Transcription Commands
+- `/tenable [language]` - Enable audio transcription for this chat (default: Hebrew)
+- `/tdisable` - Disable audio transcription for this chat
 
 ## 🏗️ Architecture
 
