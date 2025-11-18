@@ -87,11 +87,18 @@ func (s *Service) TranscribeAudio(ctx context.Context, audioPath, language, mode
 
 	// Check status code
 	if resp.StatusCode != http.StatusOK {
+		// Read the full response body for better error reporting
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyString := string(bodyBytes)
+
+		// Try to parse as structured error
 		var errResp ErrorResponse
-		if err := json.NewDecoder(resp.Body).Decode(&errResp); err == nil && errResp.Error != "" {
+		if err := json.Unmarshal(bodyBytes, &errResp); err == nil && errResp.Error != "" {
 			return nil, fmt.Errorf("transcription failed: %s", errResp.Error)
 		}
-		return nil, fmt.Errorf("transcription failed with status %d", resp.StatusCode)
+
+		// Return with full body if parsing failed
+		return nil, fmt.Errorf("transcription failed with status %d: %s", resp.StatusCode, bodyString)
 	}
 
 	// Parse response
