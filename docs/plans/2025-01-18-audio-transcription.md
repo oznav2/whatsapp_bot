@@ -103,6 +103,111 @@ import (
 
 **Token Savings:** One verification at phase end vs. 5-10 verifications during phase
 
+### 🏗️ Modular Architecture (MANDATORY)
+
+**TARGET: Each functionality in its own file. No redundant files unless necessary.**
+
+#### File Organization Principles
+
+**1. One Responsibility Per File**
+
+Each file should have a single, clear purpose:
+
+✅ **GOOD:**
+```
+internal/services/transcription/
+├── state_manager.go          # State management only
+├── state_manager_test.go     # Tests for state manager
+├── service.go                # HTTP client only
+├── service_test.go           # Tests for HTTP client
+├── models.go                 # Data structures only
+└── errors.go                 # Error types (if needed)
+```
+
+❌ **BAD:**
+```
+internal/services/transcription/
+├── transcription.go          # Everything mixed together
+├── transcription_test.go     # All tests in one file
+├── utils.go                  # Generic utilities (vague)
+├── helpers.go                # More vague utilities
+└── common.go                 # Even more mixed responsibilities
+```
+
+**2. Clear File Naming Conventions**
+
+✅ **GOOD:**
+- `state_manager.go` - Manages transcription state in database
+- `service.go` - HTTP client for transcription API
+- `models.go` - Request/response data structures
+- `tenable.go` - Command to enable transcription
+- `tdisable.go` - Command to disable transcription
+
+❌ **BAD:**
+- `utils.go` - Too vague, what utilities?
+- `helpers.go` - Too generic, helpers for what?
+- `common.go` - What's common?
+- `stuff.go` - Meaningless name
+- `transcription_utils_helpers_common.go` - Too long, unclear
+
+**3. Avoid Redundant Files**
+
+❌ **DON'T CREATE:**
+- `internal/services/transcription/transcription_service.go` (redundant "transcription" in path and filename)
+- `internal/handlers/transcription/transcription_handler.go` (redundant naming)
+- `internal/services/transcription/transcription_models.go` (just use `models.go`)
+- Empty interface files with no purpose
+- Wrapper files that just call another file
+
+✅ **DO CREATE:**
+- `internal/services/transcription/service.go` (clear, no redundancy)
+- `internal/handlers/transcription/tenable.go` (specific command)
+- `internal/services/transcription/models.go` (clear purpose)
+
+**4. Logical Grouping by Functionality**
+
+```
+internal/
+├── services/
+│   └── transcription/          # Service layer
+│       ├── state_manager.go    # Database state management
+│       ├── service.go          # HTTP API client
+│       └── models.go           # Data structures
+├── handlers/
+│   └── transcription/          # Command handlers
+│       ├── tenable.go          # Enable command
+│       └── tdisable.go         # Disable command
+└── messagehandler/
+    ├── audio_utils.go          # Audio message helpers
+    └── transcription.go        # Audio transcription flow
+```
+
+**5. When to Split vs. When to Combine**
+
+**SPLIT into separate files when:**
+- Two functionalities serve different purposes (state management vs HTTP client)
+- File exceeds ~300-400 lines
+- Different teams might work on different parts
+- Testing requires different mocks/fixtures
+
+**KEEP in same file when:**
+- Functions are tightly coupled and always used together
+- Total lines < 200 and single responsibility
+- Splitting would require excessive imports between files
+- Helper functions only used by one main function
+
+**6. Test File Organization**
+
+✅ **GOOD:**
+- `state_manager_test.go` - Tests for `state_manager.go` only
+- `service_test.go` - Tests for `service.go` only
+- `tenable_test.go` - Tests for `tenable.go` only
+
+❌ **BAD:**
+- `transcription_test.go` - All tests mixed together
+- `all_tests.go` - Generic test file
+- Spreading tests for one file across multiple test files
+
 ### 📊 Progress Tracking (MANDATORY)
 
 **Create `/home/ilan/whatsapp-livetranslate-2.0/PROGRESS.md` at start of implementation:**
