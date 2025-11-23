@@ -50,8 +50,13 @@ func (c *TranscribeEnCommand) Execute(ctx *framework.Context) error {
 
 	thumbnailURL := metadata.Thumbnail
 
-	// Display video info (single consolidated message)
-	ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("🎬 מתמלל: \"%s\"\n⏱️ משך: %s\n🤖 Whisper V3 Turbo\n🖼️ %s", videoTitle, videoDuration, thumbnailURL))
+	// Display video info
+	ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("🎬 מתמלל: \"%s\"\n⏱️ משך: %s\n🤖 Whisper V3 Turbo", videoTitle, videoDuration))
+
+	// Send thumbnail as separate message so WhatsApp displays it as image
+	if thumbnailURL != "" {
+		ctx.Handler.SendResponse(ctx.MessageInfo, thumbnailURL)
+	}
 
 	// Transcribe using Whisper V3 Turbo (multilingual model)
 	request := framework.WSTranscriptionRequest{
@@ -80,9 +85,9 @@ func (c *TranscribeEnCommand) Execute(ctx *framework.Context) error {
 		return ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("❌ שגיאה בתמלול: %v", err))
 	}
 
-	// Final response with thumbnail URL visible
-	finalResponse := fmt.Sprintf("🎬 *תמלול הושלם* (Whisper V3 Turbo)\n\n📹 סרטון: \"%s\"\n⏱️ משך: %s\n🖼️ %s\n\n📝 *תמלול:*\n\n%s",
-		videoTitle, videoDuration, thumbnailURL, result.Text)
+	// Final response (thumbnail already sent as separate image)
+	finalResponse := fmt.Sprintf("🎬 *תמלול הושלם* (Whisper V3 Turbo)\n\n📹 סרטון: \"%s\"\n⏱️ משך: %s\n\n📝 *תמלול:*\n\n%s",
+		videoTitle, videoDuration, result.Text)
 
 	return ctx.Handler.SendResponse(ctx.MessageInfo, finalResponse)
 }

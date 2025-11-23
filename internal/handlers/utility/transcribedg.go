@@ -50,8 +50,13 @@ func (c *TranscribeDGCommand) Execute(ctx *framework.Context) error {
 
 	thumbnailURL := metadata.Thumbnail
 
-	// Display video info (single consolidated message)
-	ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("🎬 מתמלל: \"%s\"\n⏱️ משך: %s\n☁️ Deepgram Nova-3\n🖼️ %s", videoTitle, videoDuration, thumbnailURL))
+	// Display video info
+	ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("🎬 מתמלל: \"%s\"\n⏱️ משך: %s\n☁️ Deepgram Nova-3", videoTitle, videoDuration))
+
+	// Send thumbnail as separate message so WhatsApp displays it as image
+	if thumbnailURL != "" {
+		ctx.Handler.SendResponse(ctx.MessageInfo, thumbnailURL)
+	}
 
 	// Transcribe using Deepgram Nova-3 cloud API
 	request := framework.WSTranscriptionRequest{
@@ -89,9 +94,9 @@ func (c *TranscribeDGCommand) Execute(ctx *framework.Context) error {
 		detectedLanguage = "Unknown"
 	}
 
-	// Final response with thumbnail URL visible
-	finalResponse := fmt.Sprintf("🎬 *תמלול הושלם* (Deepgram Nova-3 ☁️)\n\n📹 סרטון: \"%s\"\n⏱️ משך: %s\n🔤 שפה: %s\n🖼️ %s\n\n📝 *תמלול:*\n\n%s",
-		videoTitle, videoDuration, detectedLanguage, thumbnailURL, result.Text)
+	// Final response (thumbnail already sent as separate image)
+	finalResponse := fmt.Sprintf("🎬 *תמלול הושלם* (Deepgram Nova-3 ☁️)\n\n📹 סרטון: \"%s\"\n⏱️ משך: %s\n🔤 שפה: %s\n\n📝 *תמלול:*\n\n%s",
+		videoTitle, videoDuration, detectedLanguage, result.Text)
 
 	return ctx.Handler.SendResponse(ctx.MessageInfo, finalResponse)
 }
