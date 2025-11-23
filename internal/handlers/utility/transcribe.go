@@ -33,7 +33,7 @@ func (c *TranscribeCommand) Execute(ctx *framework.Context) error {
 	// Send initial status
 	ctx.Handler.SendResponse(ctx.MessageInfo, "📊 מקבל מידע על הווידאו...")
 
-	// Get video metadata from transcription service
+	// Get video metadata from deepgram service (working endpoint from logs)
 	metadata, err := transcriptionSvc.GetVideoMetadata(ctx.Context, targetURL)
 	if err != nil {
 		return ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("❌ שגיאה בקבלת מידע על הווידאו: %v", err))
@@ -49,58 +49,15 @@ func (c *TranscribeCommand) Execute(ctx *framework.Context) error {
 		videoDuration = formatDuration(metadata.DurationSeconds)
 	}
 
-	ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("🔍 מזהה שפה...\n\n📹 סרטון: \"%s\"\n⏱️ משך: %s", videoTitle, videoDuration))
+	// Display video info before starting transcription
+	ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("🎬 מתמלל עכשיו \"%s\"\n⏱️ משך: %s", videoTitle, videoDuration))
 
-	// Quick transcription of first 60 seconds to detect language using existing language detector
-	quickRequest := framework.WSTranscriptionRequest{
+	// Start transcription via WebSocket - let deepgram handle language detection and model selection
+	// Default to Hebrew, deepgram will auto-detect and switch if needed
+	request := framework.WSTranscriptionRequest{
 		URL:         targetURL,
-		Language:    "he", // Try Hebrew first
+		Language:    "he",
 		Model:       "ivrit-ct2",
-		CaptureMode: "first60",
-	}
-
-	var firstChunkText string
-	quickCallback := func(msg framework.WSTranscriptionMessage) {
-		if msg.Type == "transcription_chunk" && msg.Text != "" && firstChunkText == "" {
-			firstChunkText = msg.Text
-		}
-	}
-
-	quickResult, _ := transcriptionSvc.TranscribeViaWebSocket(ctx.Context, quickRequest, quickCallback)
-
-	// Use existing language detector from bot
-	detectedLangCode := "he" // Default to Hebrew
-	languageName := "Hebrew"
-	model := "ivrit-ct2"
-
-	if quickResult != nil && strings.TrimSpace(quickResult.Text) != "" {
-		// Use the bot's existing language detection on the transcribed text
-		langDetector := ctx.Handler.GetLangDetector()
-		detectedLang, err := langDetector.DetectLanguage(quickResult.Text)
-		if err == nil && detectedLang != "" {
-			detectedLangCode = detectedLang
-			// If not Hebrew, use Deepgram
-			if detectedLangCode != "he" && detectedLangCode != "iw" {
-				model = "deepgram"
-				languageName = detectedLangCode
-			}
-		}
-	} else {
-		// Hebrew transcription failed, try Deepgram
-		model = "deepgram"
-		detectedLangCode = "en"
-		languageName = "English"
-	}
-
-	verboseMsg := fmt.Sprintf("🎬 מתמלל עכשיו \"%s\"\n⏱️ משך: %s\n🔤 שפה מזוהה: %s",
-		videoTitle, videoDuration, languageName)
-	ctx.Handler.SendResponse(ctx.MessageInfo, verboseMsg)
-
-	// Full transcription with detected language and model
-	fullRequest := framework.WSTranscriptionRequest{
-		URL:         targetURL,
-		Language:    detectedLangCode,
-		Model:       model,
 		CaptureMode: "full",
 	}
 
@@ -121,13 +78,22 @@ func (c *TranscribeCommand) Execute(ctx *framework.Context) error {
 		}
 	}
 
-	fullResult, err := transcriptionSvc.TranscribeViaWebSocket(ctx.Context, fullRequest, progressCallback)
+	result, err := transcriptionSvc.TranscribeViaWebSocket(ctx.Context, request, progressCallback)
 	if err != nil {
 		return ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("❌ שגיאה בתמלול: %v", err))
 	}
 
+	// Use detected language from transcription result
+	languageName := result.DetectedLanguage
+	if languageName == "" {
+		languageName = result.Language
+	}
+	if languageName == "" {
+		languageName = "Unknown"
+	}
+
 	finalResponse := fmt.Sprintf("🎬 *תמלול הושלם*\n\n📹 סרטון: \"%s\"\n⏱️ משך: %s\n🔤 שפה: %s\n\n📝 *תמלול:*\n\n%s",
-		videoTitle, videoDuration, languageName, fullResult.Text)
+		videoTitle, videoDuration, languageName, result.Text)
 
 	return ctx.Handler.SendResponse(ctx.MessageInfo, finalResponse)
 }
