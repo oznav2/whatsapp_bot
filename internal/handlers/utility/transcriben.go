@@ -7,15 +7,15 @@ import (
 	framework "github.com/asparkoffire/whatsapp-livetranslate-go/internal/cmdframework"
 )
 
-type TranscribeCommand struct{}
+type TranscribeEnCommand struct{}
 
-func NewTranscribeCommand() *TranscribeCommand {
-	return &TranscribeCommand{}
+func NewTranscribeEnCommand() *TranscribeEnCommand {
+	return &TranscribeEnCommand{}
 }
 
-func (c *TranscribeCommand) Execute(ctx *framework.Context) error {
+func (c *TranscribeEnCommand) Execute(ctx *framework.Context) error {
 	if len(ctx.Args) == 0 {
-		return ctx.Handler.SendResponse(ctx.MessageInfo, "❌ אנא ספק URL של וידאו\n\nדוגמה:\n/transcribe https://youtube.com/watch?v=...")
+		return ctx.Handler.SendResponse(ctx.MessageInfo, "❌ אנא ספק URL של וידאו\n\nדוגמה:\n/transcriben https://youtube.com/watch?v=...")
 	}
 
 	targetURL := ctx.Args[0]
@@ -29,8 +29,8 @@ func (c *TranscribeCommand) Execute(ctx *framework.Context) error {
 		return ctx.Handler.SendResponse(ctx.MessageInfo, "❌ שירות התמלול לא זמין")
 	}
 
-	// Send single initial status
-	ctx.Handler.SendResponse(ctx.MessageInfo, "📊 מקבל מידע ומתמלל עם Ivrit CT2...")
+	// Send single status message
+	ctx.Handler.SendResponse(ctx.MessageInfo, "📊 מקבל מידע ומתמלל עם Whisper V3 Turbo...")
 
 	// Get video metadata from VibeGram service
 	metadata, err := transcriptionSvc.GetVideoMetadata(ctx.Context, targetURL)
@@ -51,14 +51,13 @@ func (c *TranscribeCommand) Execute(ctx *framework.Context) error {
 	thumbnailURL := metadata.Thumbnail
 
 	// Display video info (single consolidated message)
-	ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("🎬 מתמלל: \"%s\"\n⏱️ משך: %s\n🤖 Ivrit CT2\n🖼️ %s",
-		videoTitle, videoDuration, thumbnailURL))
+	ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("🎬 מתמלל: \"%s\"\n⏱️ משך: %s\n🤖 Whisper V3 Turbo\n🖼️ %s", videoTitle, videoDuration, thumbnailURL))
 
-	// Transcribe using Ivrit CT2 (Hebrew-optimized model)
+	// Transcribe using Whisper V3 Turbo (multilingual model)
 	request := framework.WSTranscriptionRequest{
 		URL:         targetURL,
-		Language:    "he",
-		Model:       "ivrit-ct2",
+		Language:    "en",
+		Model:       "whisper-v3-turbo",
 		CaptureMode: "full",
 	}
 
@@ -71,8 +70,8 @@ func (c *TranscribeCommand) Execute(ctx *framework.Context) error {
 				lastPercent = msg.Percent
 				ctx.Handler.SendResponse(ctx.MessageInfo, "📥 מוריד... 50%")
 			}
-		case "transcription_chunk":
-			// Collect silently
+		case "transcription_chunk", "transcription":
+			// Collect silently (VibeGram sends these)
 		}
 	}
 
@@ -82,45 +81,18 @@ func (c *TranscribeCommand) Execute(ctx *framework.Context) error {
 	}
 
 	// Final response with thumbnail URL visible
-	finalResponse := fmt.Sprintf("🎬 *תמלול הושלם* (Ivrit CT2)\n\n📹 סרטון: \"%s\"\n⏱️ משך: %s\n🖼️ %s\n\n📝 *תמלול:*\n\n%s",
+	finalResponse := fmt.Sprintf("🎬 *תמלול הושלם* (Whisper V3 Turbo)\n\n📹 סרטון: \"%s\"\n⏱️ משך: %s\n🖼️ %s\n\n📝 *תמלול:*\n\n%s",
 		videoTitle, videoDuration, thumbnailURL, result.Text)
 
 	return ctx.Handler.SendResponse(ctx.MessageInfo, finalResponse)
 }
 
-func (c *TranscribeCommand) Metadata() *framework.Metadata {
+func (c *TranscribeEnCommand) Metadata() *framework.Metadata {
 	return &framework.Metadata{
-		Name:        "transcribe",
-		Description: "Transcribe Hebrew video using Ivrit CT2 model",
-		Usage:       "/transcribe [url]",
-		Examples:    []string{"/transcribe https://youtube.com/watch?v=xyz"},
+		Name:        "transcriben",
+		Description: "Transcribe video using Whisper V3 Turbo (multilingual)",
+		Usage:       "/transcriben [url]",
+		Examples:    []string{"/transcriben https://youtube.com/watch?v=xyz"},
 		Category:    "Utility",
 	}
-}
-
-func formatDuration(seconds int) string {
-	if seconds < 60 {
-		return fmt.Sprintf("%d seconds", seconds)
-	}
-
-	minutes := seconds / 60
-	remainingSeconds := seconds % 60
-
-	if minutes < 60 {
-		if remainingSeconds == 0 {
-			return fmt.Sprintf("%dmin", minutes)
-		}
-		return fmt.Sprintf("%dmin and %d seconds", minutes, remainingSeconds)
-	}
-
-	hours := minutes / 60
-	remainingMinutes := minutes % 60
-
-	if remainingMinutes == 0 && remainingSeconds == 0 {
-		return fmt.Sprintf("%dh", hours)
-	}
-	if remainingSeconds == 0 {
-		return fmt.Sprintf("%dh and %dmin", hours, remainingMinutes)
-	}
-	return fmt.Sprintf("%dh, %dmin and %d seconds", hours, remainingMinutes, remainingSeconds)
 }

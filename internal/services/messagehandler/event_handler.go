@@ -133,6 +133,10 @@ func (h *WhatsMeowEventHandler) InitializeCommands() error {
 		return fmt.Errorf("failed to register transcribedg command: %w", err)
 	}
 
+	if err := registry.Register(utility.NewTranscribeEnCommand()); err != nil {
+		return fmt.Errorf("failed to register transcriben command: %w", err)
+	}
+
 	// Register admin commands
 	if err := registry.Register(admin.NewSetModelCommand()); err != nil {
 		return fmt.Errorf("failed to register setmodel command: %w", err)
