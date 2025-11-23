@@ -1769,7 +1769,7 @@ func (h *WhatsMeowEventHandler) handleAudioTranscription(msg *waProto.Message, m
 
 	// Send transcription as reply
 	adapter := NewHandlerAdapter(h)
-	response := fmt.Sprintf("🎤 *Transcription:*\n\n%s", result.Text)
+	response := fmt.Sprintf("🎤 *תמלול הודעה קולית:*\n\n%s", result.Text)
 	if result.DetectedLanguage != "" && result.DetectedLanguage != language {
 		response += fmt.Sprintf("\n\n🌐 Detected language: %s", result.DetectedLanguage)
 	}

@@ -39,7 +39,7 @@ func (h *WhatsMeowEventHandler) handleAudioTranscription(msg *waProto.Message, m
 	// Create the initial "Transcribing..." message as a reply to the audio
 	initialMsg := &waProto.Message{
 		ExtendedTextMessage: &waProto.ExtendedTextMessage{
-			Text: proto.String("🎤 Transcribing..."),
+			Text: proto.String("🎤 מתמלל הודעה..."),
 			ContextInfo: &waProto.ContextInfo{
 				StanzaID:    proto.String(msgInfo.ID),
 				Participant: proto.String(senderJID.String()),
@@ -106,7 +106,7 @@ func (h *WhatsMeowEventHandler) handleAudioTranscription(msg *waProto.Message, m
 	fmt.Printf("[DEBUG]   DetectedLanguage: %s\n", result.DetectedLanguage)
 
 	// Build the final transcription message
-	response := fmt.Sprintf("🎤 *Transcription:*\n\n%s", result.Text)
+	response := fmt.Sprintf("🎤 *תמלול הודעה קולית:*\n\n%s", result.Text)
 	if result.DetectedLanguage != "" && result.DetectedLanguage != language {
 		response += fmt.Sprintf("\n\n🌐 Detected language: %s", result.DetectedLanguage)
 	}
