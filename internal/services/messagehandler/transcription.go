@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/asparkoffire/whatsapp-livetranslate-go/internal/services/transcription"
 	waProto "go.mau.fi/whatsmeow/proto/waE2E"
@@ -215,20 +216,39 @@ func (h *WhatsMeowEventHandler) handleVideoTranscription(msg *waProto.Message, m
 		language = "he" // Default to Hebrew
 	}
 
-	// Quick language detection from first 60 seconds
+	// Quick language detection from first 60 seconds using Hebrew transcription first
 	h.editStatusMessage(ctx, msgInfo.Chat, resp.ID, msgInfo.ID, senderJID, "🔍 מזהה שפה...")
-	detectedLangCode, err := h.transcriptionSvc.QuickLanguageDetection(ctx, videoURL)
-	if err != nil {
-		fmt.Printf("Language detection failed, using default: %v\n", err)
-		detectedLangCode = language
+
+	quickRequest := transcription.WSTranscriptionRequest{
+		URL:         videoURL,
+		Language:    "he",
+		Model:       "ivrit-ct2",
+		CaptureMode: "first60",
 	}
 
-	// Determine optimal model
-	model := "deepgram"
-	languageName := detectedLangCode
-	if detectedLangCode == "he" || detectedLangCode == "iw" {
-		model = "ivrit-ct2"
-		languageName = "Hebrew"
+	quickResult, _ := h.transcriptionSvc.TranscribeViaWebSocket(ctx, quickRequest, nil)
+
+	// Use existing language detector on transcribed text
+	detectedLangCode := language // Default to configured language
+	languageName := "Hebrew"
+	model := "ivrit-ct2"
+
+	if quickResult != nil && strings.TrimSpace(quickResult.Text) != "" {
+		// Use the bot's existing language detection on the transcribed text
+		detectedLang, ok := h.detector.DetectLanguage(quickResult.Text)
+		if ok {
+			detectedLangCode = detectedLang.IsoCode639_1().String()
+			// If not Hebrew, use Deepgram
+			if detectedLangCode != "he" && detectedLangCode != "iw" {
+				model = "deepgram"
+				languageName = detectedLangCode
+			}
+		}
+	} else {
+		// Hebrew transcription failed, try Deepgram
+		model = "deepgram"
+		detectedLangCode = "en"
+		languageName = "English"
 	}
 
 	// Show verbose progress message

@@ -1,11 +1,13 @@
 package utility
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
 
 	framework "github.com/asparkoffire/whatsapp-livetranslate-go/internal/cmdframework"
+	"github.com/lrstanley/go-ytdlp"
 )
 
 type TranscribeCommand struct{}
@@ -33,41 +35,80 @@ func (c *TranscribeCommand) Execute(ctx *framework.Context) error {
 	// Send initial status
 	ctx.Handler.SendResponse(ctx.MessageInfo, "📊 מקבל מידע על הווידאו...")
 
-	metadata, err := transcriptionSvc.GetVideoMetadata(ctx.Context, targetURL)
+	// Extract video metadata using yt-dlp
+	dl := ytdlp.New().DumpSingleJSON().NoPlaylist()
+	result, err := dl.Run(context.Background(), targetURL)
 	if err != nil {
-		return ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("❌ שגיאה בקבלת מידע: %v", err))
+		return ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("❌ שגיאה בקבלת מידע על הווידאו: %v", err))
 	}
 
-	videoTitle := metadata.Title
-	if videoTitle == "" {
-		videoTitle = "Unknown Video"
+	// Parse extracted info
+	infos, err := result.GetExtractedInfo()
+	if err != nil || len(infos) == 0 {
+		return ctx.Handler.SendResponse(ctx.MessageInfo, "❌ לא ניתן לחלץ מידע על הווידאו")
 	}
-	videoDuration := formatDuration(metadata.DurationSeconds)
+
+	info := infos[0]
+	videoTitle := "Unknown Video"
+	if info.Title != nil && *info.Title != "" {
+		videoTitle = *info.Title
+	}
+
+	videoDurationSeconds := 0
+	if info.Duration != nil {
+		videoDurationSeconds = int(*info.Duration)
+	}
+	videoDuration := formatDuration(videoDurationSeconds)
 
 	ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("🔍 מזהה שפה...\n\n📹 סרטון: \"%s\"\n⏱️ משך: %s", videoTitle, videoDuration))
 
-	detectedLangCode, err := transcriptionSvc.QuickLanguageDetection(ctx.Context, targetURL)
-	if err != nil {
-		return ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("❌ שגיאה בזיהוי שפה: %v", err))
+	// Quick transcription of first 60 seconds to detect language using existing language detector
+	quickRequest := framework.WSTranscriptionRequest{
+		URL:         targetURL,
+		Language:    "he", // Try Hebrew first
+		Model:       "ivrit-ct2",
+		CaptureMode: "first60",
 	}
 
-	// Handle unknown language - default to English and use detect mode
-	if detectedLangCode == "unknown" || detectedLangCode == "" {
+	var firstChunkText string
+	quickCallback := func(msg framework.WSTranscriptionMessage) {
+		if msg.Type == "transcription_chunk" && msg.Text != "" && firstChunkText == "" {
+			firstChunkText = msg.Text
+		}
+	}
+
+	quickResult, _ := transcriptionSvc.TranscribeViaWebSocket(ctx.Context, quickRequest, quickCallback)
+
+	// Use existing language detector from bot
+	detectedLangCode := "he" // Default to Hebrew
+	languageName := "Hebrew"
+	model := "ivrit-ct2"
+
+	if quickResult != nil && strings.TrimSpace(quickResult.Text) != "" {
+		// Use the bot's existing language detection on the transcribed text
+		langDetector := ctx.Handler.GetLangDetector()
+		detectedLang, err := langDetector.DetectLanguage(quickResult.Text)
+		if err == nil && detectedLang != "" {
+			detectedLangCode = detectedLang
+			// If not Hebrew, use Deepgram
+			if detectedLangCode != "he" && detectedLangCode != "iw" {
+				model = "deepgram"
+				languageName = detectedLangCode
+			}
+		}
+	} else {
+		// Hebrew transcription failed, try Deepgram
+		model = "deepgram"
 		detectedLangCode = "en"
-	}
-
-	model := "deepgram"
-	languageName := detectedLangCode
-	if detectedLangCode == "he" || detectedLangCode == "iw" {
-		model = "ivrit-ct2"
-		languageName = "Hebrew"
+		languageName = "English"
 	}
 
 	verboseMsg := fmt.Sprintf("🎬 מתמלל עכשיו \"%s\"\n⏱️ משך: %s\n🔤 שפה מזוהה: %s",
 		videoTitle, videoDuration, languageName)
 	ctx.Handler.SendResponse(ctx.MessageInfo, verboseMsg)
 
-	request := framework.WSTranscriptionRequest{
+	// Full transcription with detected language and model
+	fullRequest := framework.WSTranscriptionRequest{
 		URL:         targetURL,
 		Language:    detectedLangCode,
 		Model:       model,
@@ -91,13 +132,13 @@ func (c *TranscribeCommand) Execute(ctx *framework.Context) error {
 		}
 	}
 
-	result, err := transcriptionSvc.TranscribeViaWebSocket(ctx.Context, request, progressCallback)
+	fullResult, err := transcriptionSvc.TranscribeViaWebSocket(ctx.Context, fullRequest, progressCallback)
 	if err != nil {
 		return ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("❌ שגיאה בתמלול: %v", err))
 	}
 
 	finalResponse := fmt.Sprintf("🎬 *תמלול הושלם*\n\n📹 סרטון: \"%s\"\n⏱️ משך: %s\n🔤 שפה: %s\n\n📝 *תמלול:*\n\n%s",
-		videoTitle, videoDuration, languageName, result.Text)
+		videoTitle, videoDuration, languageName, fullResult.Text)
 
 	return ctx.Handler.SendResponse(ctx.MessageInfo, finalResponse)
 }

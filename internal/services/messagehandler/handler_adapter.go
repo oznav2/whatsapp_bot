@@ -235,27 +235,6 @@ type TranscriptionServiceAdapter struct {
 	service *transcription.Service
 }
 
-func (t *TranscriptionServiceAdapter) GetVideoMetadata(ctx context.Context, videoURL string) (*framework.VideoMetadata, error) {
-	meta, err := t.service.GetVideoMetadata(ctx, videoURL)
-	if err != nil {
-		return nil, err
-	}
-	return &framework.VideoMetadata{
-		Title:              meta.Title,
-		Channel:            meta.Channel,
-		DurationSeconds:    meta.DurationSeconds,
-		DurationFormatted:  meta.DurationFormatted,
-		ViewCount:          meta.ViewCount,
-		ViewCountFormatted: meta.ViewCountFormatted,
-		Thumbnail:          meta.Thumbnail,
-		IsYouTube:          meta.IsYouTube,
-	}, nil
-}
-
-func (t *TranscriptionServiceAdapter) QuickLanguageDetection(ctx context.Context, videoURL string) (string, error) {
-	return t.service.QuickLanguageDetection(ctx, videoURL)
-}
-
 func (t *TranscriptionServiceAdapter) TranscribeViaWebSocket(ctx context.Context, request framework.WSTranscriptionRequest, progressCallback func(framework.WSTranscriptionMessage)) (*framework.TranscriptionResponse, error) {
 	// Convert framework types to service types
 	serviceRequest := transcription.WSTranscriptionRequest{

@@ -110,7 +110,95 @@
       "lastAccessed": "2025-11-17T23:28:38.501Z",
       "lastVerified": "2025-11-17T23:28:38.501Z",
       "status": "fresh"
+    },
+    {
+      "id": "mem_1763906779161_pgg9tjghp",
+      "content": "WhatsApp LiveTranslate Bot - Video Transcription Feature Analysis\n\nKEY FINDINGS:\n1. Current transcription only supports audio via /tenable command\n2. Transcription uses Deepgram container at localhost:8009 (configurable via TRANSCRIBE_SERVICE_URL)\n3. Service has /api/upload endpoint and multiple transcription endpoints\n4. Current flow: Download → Save to temp file → Upload to service → Get file_id → POST to /api/transcribe/* with file path\n\nARCHITECTURE PATTERNS:\n- Command framework: Commands implement Execute() and Metadata()\n- Owner-only commands wrapped with RequireOwner() middleware\n- WhatsApp message download: client.Download(msg) returns []byte\n- Video messages: msg.GetVideoMessage() similar to audio\n- Download command uses yt-dlp for URL processing (supports YouTube, Instagram, Twitter, etc.)\n\nTRANSCRIPTION SERVICE API:\n- POST /api/upload - Upload file, returns {file_id, filename, size_mb}\n- POST /api/transcribe/whisper - For non-Hebrew (whisper-v3-turbo model)\n- POST /api/transcribe/whisper-ivrit - For Hebrew (ivrit-ct2 model)  \n- POST /api/transcribe/deepgram - For Deepgram model\n- Request body: {url: \"/app/uploads/file_id\", language: \"he\"}\n\nNEEDED FOR VIDEO TRANSCRIPTION:\n1. Extend shouldTranscribe() to check for video messages when /tenable\n2. Add handleVideoTranscription() similar to handleAudioTranscription()\n3. Add /transcribe command for URL-based transcription (any chat)\n4. Extract audio from video before uploading to transcription service OR send video directly if service supports it\n5. Support both direct video messages and URLs via yt-dlp download",
+      "type": "concept",
+      "tags": [
+        "concept",
+        "api",
+        "whatsapp-bot",
+        "transcription",
+        "video",
+        "architecture"
+      ],
+      "timestamp": "2025-11-23T14:06:19.161Z",
+      "accessCount": 0,
+      "lastAccessed": "2025-11-23T14:06:19.161Z",
+      "lastVerified": "2025-11-23T14:06:19.161Z",
+      "status": "fresh"
+    },
+    {
+      "id": "mem_1763907222248_2lxkkyp6m",
+      "content": "Deepgram Container Full Capabilities - Video Transcription\n\nCRITICAL DISCOVERY:\nThe Deepgram container ALREADY handles video transcription end-to-end!\n\nREST API ENDPOINTS:\n1. POST /api/upload - Upload file, returns {file_id, filename, size_mb}\n2. POST /api/transcribe/whisper-ivrit - Hebrew transcription\n3. POST /api/transcribe/whisper - Standard Whisper\n4. POST /api/transcribe/deepgram - Deepgram transcription\n\nEach transcription endpoint accepts TWO input methods:\nA) multipart/form-data with 'file' field (uploaded file)\nB) JSON body with 'url' field: {url: \"https://...\", language: \"he\", ...}\n\nAUTOMATIC VIDEO HANDLING:\n- download_with_fallback() function tries: yt-dlp first, then ffmpeg\n- ffmpeg command includes '-vn' flag = extracts audio from video automatically\n- Supports YouTube, Instagram, Twitter, TikTok, etc. via yt-dlp\n- Returns final transcription text after complete workflow\n\nBOT IMPLEMENTATION STRATEGY:\n1. Video Messages: Download from WhatsApp → Upload to /api/upload → POST to /api/transcribe/* with file path\n2. URL Transcription: Pass URL directly in JSON body → Deepgram handles download, audio extraction, transcription\n\nNO REDUNDANCY: Bot should NOT use yt-dlp or ffmpeg - Deepgram container already has this!",
+      "type": "tip",
+      "tags": [
+        "tip",
+        "api",
+        "deepgram",
+        "video-transcription",
+        "architecture"
+      ],
+      "timestamp": "2025-11-23T14:13:42.248Z",
+      "accessCount": 0,
+      "lastAccessed": "2025-11-23T14:13:42.248Z",
+      "lastVerified": "2025-11-23T14:13:42.248Z",
+      "status": "fresh"
+    },
+    {
+      "id": "mem_1763908032269_2e437tlsi",
+      "content": "Language Detection Strategy for Video Transcription\n\nUSER REQUIREMENTS:\n1. Detect language of video audio\n2. Hebrew → use ivrit-ct2 model\n3. Non-Hebrew → use Deepgram model\n4. Use WebSocket endpoints (already working in /tenable)\n\nBOT'S LANGUAGE DETECTION:\n- Has LangDetectService using Lingua library (lingua-go)\n- Detects language from TEXT, not audio\n- Method: DetectLanguage(text string) (lingua.Language, bool)\n\nDEEPGRAM WEBSOCKET ENDPOINT:\n- ws://localhost:8009/ws/transcribe\n- Input: {url: \"...\", model: \"ivrit-ct2\"|\"whisper-v3-turbo\"|\"deepgram\", language: \"he\"}\n- Output: Real-time status updates and transcription chunks\n- Returns detected_language in completion message\n\nOPTIMAL STRATEGY:\n1. Start WebSocket transcription with whisper-v3-turbo (fast, multilingual)\n2. Wait for first transcription chunk\n3. Use Lingua to detect language from first chunk text\n4. If Hebrew detected:\n   - Restart WebSocket with ivrit-ct2 model for better Hebrew quality\n5. If non-Hebrew:\n   - Restart WebSocket with deepgram model for better quality\n6. Continue streaming transcription to completion\n\nALTERNATIVE (simpler but slower):\n1. Transcribe full video with whisper-v3-turbo\n2. Detect language from full transcription\n3. If mismatch with optimal model, re-transcribe with correct model",
+      "type": "general",
+      "tags": [
+        "general",
+        "go",
+        "language-detection",
+        "websocket",
+        "transcription",
+        "strategy"
+      ],
+      "timestamp": "2025-11-23T14:27:12.269Z",
+      "accessCount": 0,
+      "lastAccessed": "2025-11-23T14:27:12.269Z",
+      "lastVerified": "2025-11-23T14:27:12.269Z",
+      "status": "fresh"
+    },
+    {
+      "id": "mem_1763908070766_0hzba72uy",
+      "content": "WebSocket Implementation Strategy for /transcribe Command\n\nKEY FINDINGS:\n1. Bot has gorilla/websocket library in go.mod\n2. Bot does NOT currently use WebSockets with Deepgram (uses REST API)\n3. LangDetectService (Lingua) detects language from TEXT only, not audio\n4. Deepgram WebSocket returns detected_language in response\n\nOPTIMAL IMPLEMENTATION STRATEGY:\nPhase 1: Quick Language Detection (First 15 seconds)\n- WebSocket to Deepgram with whisper-v3-turbo (fast, multilingual)\n- Request first 15 seconds only\n- Wait for first transcription chunk\n- Use Lingua to detect language from text\n- Close WebSocket connection\n\nPhase 2: Full Transcription with Optimal Model\n- If Hebrew detected → New WebSocket with ivrit-ct2 model\n- If non-Hebrew detected → New WebSocket with deepgram model\n- Transcribe full video\n- Stream chunks to user in real-time\n\nWEBSOCKET MESSAGE FLOW:\nBot → Deepgram: {url: \"...\", model: \"whisper-v3-turbo\", captureMode: \"first60\"}\nDeepgram → Bot: {type: \"transcription_chunk\", text: \"...\"}\nBot uses Lingua.DetectLanguage(text) → language\nBot → User: \"Detected Hebrew, using ivrit-ct2 for optimal quality...\"\nBot → Deepgram: {url: \"...\", model: \"ivrit-ct2\", captureMode: \"full\"}\nDeepgram → Bot: Multiple transcription chunks\nBot → User: Stream chunks in real-time\n\nALTERNATIVE (Simpler but less optimal):\nUse whisper-v3-turbo for everything (good for all languages)\nDetect language from first chunk\nInform user of detected language\nNo model switching",
+      "type": "general",
+      "tags": [
+        "general",
+        "go",
+        "api",
+        "websocket",
+        "language-detection",
+        "implementation-strategy"
+      ],
+      "timestamp": "2025-11-23T14:27:50.766Z",
+      "accessCount": 0,
+      "lastAccessed": "2025-11-23T14:27:50.766Z",
+      "lastVerified": "2025-11-23T14:27:50.766Z",
+      "status": "fresh"
+    },
+    {
+      "id": "mem_1763909506018_fuwcdibl8",
+      "content": "User Requirements for /transcribe Command UX Enhancement:\n\n1. **Fetch video metadata FIRST** - Use POST /api/video-info to get:\n   - Video title\n   - Video duration (formatted as \"12min and 13 seconds\")\n   - Before starting transcription\n\n2. **Verbose progress message** - Show user:\n   \"Transcribing now \"[Video Title]\" length: [duration] and Video Language detected: [language]\"\n\n3. **NO streaming chunks** - Don't show partial transcription text\n   - Only show download progress (percentage)\n   - Don't show partial transcription chunks\n\n4. **Final transcription only** - Present complete transcription when done\n   - Show full text only when transcription is complete\n   - No incremental updates of text\n\n5. **Better expectations** - User knows what to expect:\n   - Video title (what they're transcribing)\n   - Duration (how long the transcription will take)\n   - Language (which model will be used)\n\nAPI to use: POST http://localhost:8009/api/video-info\nReturns: {success: true, data: {title, duration_seconds, duration_formatted, ...}}",
+      "type": "warning",
+      "tags": [
+        "warning",
+        "api",
+        "ux-enhancement",
+        "video-metadata",
+        "user-requirements"
+      ],
+      "timestamp": "2025-11-23T14:51:46.018Z",
+      "accessCount": 0,
+      "lastAccessed": "2025-11-23T14:51:46.018Z",
+      "lastVerified": "2025-11-23T14:51:46.018Z",
+      "status": "fresh"
     }
   ],
-  "lastUpdated": "2025-11-17T23:28:38.501Z"
+  "lastUpdated": "2025-11-23T14:51:46.018Z"
 }
