@@ -128,6 +128,7 @@ type LangDetectorInterface interface {
 }
 
 type TranscriptionServiceInterface interface {
+	GetVideoMetadata(ctx context.Context, videoURL string) (*VideoMetadata, error)
 	TranscribeViaWebSocket(ctx context.Context, request WSTranscriptionRequest, progressCallback func(WSTranscriptionMessage)) (*TranscriptionResponse, error)
 }
 

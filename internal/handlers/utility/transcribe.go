@@ -1,13 +1,11 @@
 package utility
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"time"
 
 	framework "github.com/asparkoffire/whatsapp-livetranslate-go/internal/cmdframework"
-	"github.com/lrstanley/go-ytdlp"
 )
 
 type TranscribeCommand struct{}
@@ -35,30 +33,21 @@ func (c *TranscribeCommand) Execute(ctx *framework.Context) error {
 	// Send initial status
 	ctx.Handler.SendResponse(ctx.MessageInfo, "📊 מקבל מידע על הווידאו...")
 
-	// Extract video metadata using yt-dlp
-	dl := ytdlp.New().DumpSingleJSON().NoPlaylist()
-	result, err := dl.Run(context.Background(), targetURL)
+	// Get video metadata from transcription service
+	metadata, err := transcriptionSvc.GetVideoMetadata(ctx.Context, targetURL)
 	if err != nil {
 		return ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("❌ שגיאה בקבלת מידע על הווידאו: %v", err))
 	}
 
-	// Parse extracted info
-	infos, err := result.GetExtractedInfo()
-	if err != nil || len(infos) == 0 {
-		return ctx.Handler.SendResponse(ctx.MessageInfo, "❌ לא ניתן לחלץ מידע על הווידאו")
+	videoTitle := metadata.Title
+	if videoTitle == "" {
+		videoTitle = "Unknown Video"
 	}
 
-	info := infos[0]
-	videoTitle := "Unknown Video"
-	if info.Title != nil && *info.Title != "" {
-		videoTitle = *info.Title
+	videoDuration := metadata.DurationFormatted
+	if videoDuration == "" {
+		videoDuration = formatDuration(metadata.DurationSeconds)
 	}
-
-	videoDurationSeconds := 0
-	if info.Duration != nil {
-		videoDurationSeconds = int(*info.Duration)
-	}
-	videoDuration := formatDuration(videoDurationSeconds)
 
 	ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("🔍 מזהה שפה...\n\n📹 סרטון: \"%s\"\n⏱️ משך: %s", videoTitle, videoDuration))
 

@@ -167,3 +167,53 @@ func (s *Service) TranscribeAudio(ctx context.Context, audioPath, language, mode
 
 	return &result, nil
 }
+
+// GetVideoMetadata fetches video metadata from the transcription service
+func (s *Service) GetVideoMetadata(ctx context.Context, videoURL string) (*VideoMetadata, error) {
+	// Create request body
+	requestBody := map[string]interface{}{
+		"url": videoURL,
+	}
+
+	bodyBytes, err := json.Marshal(requestBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// Create HTTP request
+	url := s.baseURL + "/api/video-info"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(bodyBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	// Send request
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check status code
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("video-info failed with status %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	// Parse response
+	var result VideoInfoResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if !result.Success {
+		if result.Error != "" {
+			return nil, fmt.Errorf("failed to get video metadata: %s", result.Error)
+		}
+		return nil, fmt.Errorf("failed to get video metadata (no error message)")
+	}
+
+	return &result.Metadata, nil
+}
