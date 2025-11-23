@@ -49,15 +49,52 @@ func (c *TranscribeCommand) Execute(ctx *framework.Context) error {
 		videoDuration = formatDuration(metadata.DurationSeconds)
 	}
 
-	// Display video info before starting transcription
-	ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("🎬 מתמלל עכשיו \"%s\"\n⏱️ משך: %s", videoTitle, videoDuration))
+	// Display video info and thumbnail
+	thumbnailURL := metadata.Thumbnail
+	ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("🎬 מתמלל עכשיו \"%s\"\n⏱️ משך: %s\n🖼️ %s", videoTitle, videoDuration, thumbnailURL))
 
-	// Start transcription via WebSocket - let deepgram handle language detection and model selection
-	// Default to Hebrew, deepgram will auto-detect and switch if needed
-	request := framework.WSTranscriptionRequest{
+	// Language detection: Try Hebrew first with first60 mode
+	ctx.Handler.SendResponse(ctx.MessageInfo, "🔍 מזהה שפה...")
+
+	quickRequest := framework.WSTranscriptionRequest{
 		URL:         targetURL,
 		Language:    "he",
 		Model:       "ivrit-ct2",
+		CaptureMode: "first60",
+	}
+
+	quickResult, _ := transcriptionSvc.TranscribeViaWebSocket(ctx.Context, quickRequest, nil)
+
+	// Detect language using Lingua on transcribed text
+	selectedModel := "ivrit-ct2"
+	selectedLanguage := "he"
+	languageDisplayName := "Hebrew"
+
+	if quickResult != nil && strings.TrimSpace(quickResult.Text) != "" {
+		langDetector := ctx.Handler.GetLangDetector()
+		detectedLang, err := langDetector.DetectLanguage(quickResult.Text)
+		if err == nil && detectedLang != "" {
+			selectedLanguage = detectedLang
+			// If not Hebrew, use whisper-v3-turbo (VibeGram's multilingual model)
+			if detectedLang != "he" && detectedLang != "iw" {
+				selectedModel = "whisper-v3-turbo"
+				languageDisplayName = detectedLang
+			}
+		}
+	} else {
+		// Hebrew transcription failed, assume non-Hebrew
+		selectedModel = "whisper-v3-turbo"
+		selectedLanguage = "en"
+		languageDisplayName = "English"
+	}
+
+	ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("🔤 שפה מזוהה: %s\n📥 מתחיל תמלול מלא...", languageDisplayName))
+
+	// Full transcription with detected language and model
+	fullRequest := framework.WSTranscriptionRequest{
+		URL:         targetURL,
+		Language:    selectedLanguage,
+		Model:       selectedModel,
 		CaptureMode: "full",
 	}
 
@@ -78,22 +115,20 @@ func (c *TranscribeCommand) Execute(ctx *framework.Context) error {
 		}
 	}
 
-	result, err := transcriptionSvc.TranscribeViaWebSocket(ctx.Context, request, progressCallback)
+	result, err := transcriptionSvc.TranscribeViaWebSocket(ctx.Context, fullRequest, progressCallback)
 	if err != nil {
 		return ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("❌ שגיאה בתמלול: %v", err))
 	}
 
-	// Use detected language from transcription result
-	languageName := result.DetectedLanguage
-	if languageName == "" {
-		languageName = result.Language
-	}
-	if languageName == "" {
-		languageName = "Unknown"
+	// Use detected language from final result, fallback to selected language
+	finalLanguage := result.DetectedLanguage
+	if finalLanguage == "" {
+		finalLanguage = languageDisplayName
 	}
 
-	finalResponse := fmt.Sprintf("🎬 *תמלול הושלם*\n\n📹 סרטון: \"%s\"\n⏱️ משך: %s\n🔤 שפה: %s\n\n📝 *תמלול:*\n\n%s",
-		videoTitle, videoDuration, languageName, result.Text)
+	// Final response with thumbnail URL visible
+	finalResponse := fmt.Sprintf("🎬 *תמלול הושלם*\n\n📹 סרטון: \"%s\"\n⏱️ משך: %s\n🔤 שפה: %s\n🖼️ %s\n\n📝 *תמלול:*\n\n%s",
+		videoTitle, videoDuration, finalLanguage, thumbnailURL, result.Text)
 
 	return ctx.Handler.SendResponse(ctx.MessageInfo, finalResponse)
 }

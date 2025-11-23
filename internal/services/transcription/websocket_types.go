@@ -46,9 +46,9 @@ type VideoMetadata struct {
 
 // VideoInfoResponse represents the response from /api/video-info
 type VideoInfoResponse struct {
-	Success  bool          `json:"success"`
-	Metadata VideoMetadata `json:"metadata"`
-	Error    string        `json:"error,omitempty"`
+	Success bool          `json:"success"`
+	Data    VideoMetadata `json:"data"` // VibeGram returns "data", not "metadata"
+	Error   string        `json:"error,omitempty"`
 }
 
 // FormatDuration converts seconds to human-readable format

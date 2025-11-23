@@ -215,5 +215,5 @@ func (s *Service) GetVideoMetadata(ctx context.Context, videoURL string) (*Video
 		return nil, fmt.Errorf("failed to get video metadata (no error message)")
 	}
 
-	return &result.Metadata, nil
+	return &result.Data, nil
 }
