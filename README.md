@@ -1,4 +1,4 @@
-# WhatsApp LiveTranslate 2.0
+# WhatsApp_bot
 
 <div align="center">
 
@@ -155,7 +155,7 @@ This helps with:
 ### Translation Commands
 - `/[language_code] <text>` - Translate text to specified language
 - `/[language_code]` - Translate quoted message
-- Examples: `/es Hello world`, `/fr`, `/ja`
+- Examples: `/ar Hello world`, `/fr`, `/ja`
 
 ### Utility Commands
 - `/help` - Show all available commands
@@ -300,5 +300,5 @@ For support, please open an issue in the GitHub repository or contact the mainta
 ---
 
 <div align="center">
-Made with ❤️ by <a href="https://github.com/ASparkOfFire">ASparkOfFire</a>
+Based on <a href="https://github.com/ASparkOfFire/whatsapp-livetranslate-2.0">WhatsApp LiveTranslate 2.0</a>
 </div>
