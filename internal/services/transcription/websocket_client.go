@@ -62,7 +62,9 @@ func (s *Service) TranscribeViaWebSocket(ctx context.Context, request WSTranscri
 
 		// Handle message types
 		switch msg.Type {
-		case "transcription_chunk":
+		case "transcription_chunk", "transcription":
+			// VibeGram sends "transcription" for Deepgram (full text)
+			// and "transcription_chunk" for Whisper models (incremental)
 			if msg.Text != "" {
 				transcriptionChunks = append(transcriptionChunks, msg.Text)
 			}

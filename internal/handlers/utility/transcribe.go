@@ -1,6 +1,7 @@
 package utility
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -30,10 +31,10 @@ func (c *TranscribeCommand) Execute(ctx *framework.Context) error {
 		return ctx.Handler.SendResponse(ctx.MessageInfo, "❌ שירות התמלול לא זמין")
 	}
 
-	// Send initial status
-	ctx.Handler.SendResponse(ctx.MessageInfo, "📊 מקבל מידע על הווידאו...")
+	// Send single initial status (fewer messages = less likely to be hidden)
+	ctx.Handler.SendResponse(ctx.MessageInfo, "📊 מקבל מידע ומזהה שפה...")
 
-	// Get video metadata from deepgram service (working endpoint from logs)
+	// Get video metadata from VibeGram service
 	metadata, err := transcriptionSvc.GetVideoMetadata(ctx.Context, targetURL)
 	if err != nil {
 		return ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("❌ שגיאה בקבלת מידע על הווידאו: %v", err))
@@ -49,12 +50,12 @@ func (c *TranscribeCommand) Execute(ctx *framework.Context) error {
 		videoDuration = formatDuration(metadata.DurationSeconds)
 	}
 
-	// Display video info and thumbnail
 	thumbnailURL := metadata.Thumbnail
-	ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("🎬 מתמלל עכשיו \"%s\"\n⏱️ משך: %s\n🖼️ %s", videoTitle, videoDuration, thumbnailURL))
 
 	// Language detection: Try Hebrew first with first60 mode
-	ctx.Handler.SendResponse(ctx.MessageInfo, "🔍 מזהה שפה...")
+	// Add timeout to prevent hanging on Hebrew videos
+	detectCtx, cancel := context.WithTimeout(ctx.Context, 90*time.Second)
+	defer cancel()
 
 	quickRequest := framework.WSTranscriptionRequest{
 		URL:         targetURL,
@@ -63,7 +64,7 @@ func (c *TranscribeCommand) Execute(ctx *framework.Context) error {
 		CaptureMode: "first60",
 	}
 
-	quickResult, _ := transcriptionSvc.TranscribeViaWebSocket(ctx.Context, quickRequest, nil)
+	quickResult, _ := transcriptionSvc.TranscribeViaWebSocket(detectCtx, quickRequest, nil)
 
 	// Detect language using Lingua on transcribed text
 	selectedModel := "ivrit-ct2"
@@ -88,7 +89,9 @@ func (c *TranscribeCommand) Execute(ctx *framework.Context) error {
 		languageDisplayName = "English"
 	}
 
-	ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("🔤 שפה מזוהה: %s\n📥 מתחיל תמלול מלא...", languageDisplayName))
+	// Display video info with detected language (single consolidated message)
+	ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("🎬 מתמלל: \"%s\"\n⏱️ משך: %s\n🔤 שפה: %s\n🖼️ %s",
+		videoTitle, videoDuration, languageDisplayName, thumbnailURL))
 
 	// Full transcription with detected language and model
 	fullRequest := framework.WSTranscriptionRequest{
@@ -99,16 +102,13 @@ func (c *TranscribeCommand) Execute(ctx *framework.Context) error {
 	}
 
 	lastPercent := 0.0
-	lastUpdate := time.Now()
 	progressCallback := func(msg framework.WSTranscriptionMessage) {
 		switch msg.Type {
 		case "download_progress":
-			now := time.Now()
-			if msg.Percent-lastPercent >= 25.0 || msg.Percent >= 99.0 || now.Sub(lastUpdate) > 2*time.Second {
+			// Only show 50% to minimize messages
+			if msg.Percent >= 50.0 && lastPercent < 50.0 {
 				lastPercent = msg.Percent
-				lastUpdate = now
-				progressMsg := fmt.Sprintf("📥 הורדה: %.0f%%", msg.Percent)
-				ctx.Handler.SendResponse(ctx.MessageInfo, progressMsg)
+				ctx.Handler.SendResponse(ctx.MessageInfo, "📥 מוריד... 50%")
 			}
 		case "transcription_chunk":
 			// Collect silently

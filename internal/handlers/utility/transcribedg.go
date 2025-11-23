@@ -3,7 +3,6 @@ package utility
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	framework "github.com/asparkoffire/whatsapp-livetranslate-go/internal/cmdframework"
 )
@@ -30,8 +29,8 @@ func (c *TranscribeDGCommand) Execute(ctx *framework.Context) error {
 		return ctx.Handler.SendResponse(ctx.MessageInfo, "❌ שירות התמלול לא זמין")
 	}
 
-	// Send initial status
-	ctx.Handler.SendResponse(ctx.MessageInfo, "📊 מקבל מידע על הווידאו...")
+	// Send single status message
+	ctx.Handler.SendResponse(ctx.MessageInfo, "📊 מקבל מידע ומתמלל עם Deepgram ☁️...")
 
 	// Get video metadata from VibeGram service
 	metadata, err := transcriptionSvc.GetVideoMetadata(ctx.Context, targetURL)
@@ -49,9 +48,10 @@ func (c *TranscribeDGCommand) Execute(ctx *framework.Context) error {
 		videoDuration = formatDuration(metadata.DurationSeconds)
 	}
 
-	// Display video info and thumbnail
 	thumbnailURL := metadata.Thumbnail
-	ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("🎬 מתמלל עכשיו עם Deepgram Nova-3 ☁️\n\n📹 סרטון: \"%s\"\n⏱️ משך: %s\n🖼️ %s", videoTitle, videoDuration, thumbnailURL))
+
+	// Display video info (single consolidated message)
+	ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("🎬 מתמלל: \"%s\"\n⏱️ משך: %s\n☁️ Deepgram Nova-3\n🖼️ %s", videoTitle, videoDuration, thumbnailURL))
 
 	// Transcribe using Deepgram Nova-3 cloud API
 	request := framework.WSTranscriptionRequest{
@@ -62,19 +62,16 @@ func (c *TranscribeDGCommand) Execute(ctx *framework.Context) error {
 	}
 
 	lastPercent := 0.0
-	lastUpdate := time.Now()
 	progressCallback := func(msg framework.WSTranscriptionMessage) {
 		switch msg.Type {
 		case "download_progress":
-			now := time.Now()
-			if msg.Percent-lastPercent >= 25.0 || msg.Percent >= 99.0 || now.Sub(lastUpdate) > 2*time.Second {
+			// Only show 50% to minimize messages
+			if msg.Percent >= 50.0 && lastPercent < 50.0 {
 				lastPercent = msg.Percent
-				lastUpdate = now
-				progressMsg := fmt.Sprintf("📥 הורדה: %.0f%%", msg.Percent)
-				ctx.Handler.SendResponse(ctx.MessageInfo, progressMsg)
+				ctx.Handler.SendResponse(ctx.MessageInfo, "📥 מוריד... 50%")
 			}
-		case "transcription_chunk":
-			// Collect silently
+		case "transcription_chunk", "transcription":
+			// Collect silently (VibeGram sends these)
 		}
 	}
 
