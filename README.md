@@ -1,4 +1,4 @@
-# WhatsApp_bot
+# WhatsApp_bot_multiuser
 
 <div align="center">
 
