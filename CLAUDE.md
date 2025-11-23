@@ -78,6 +78,7 @@ type Command interface {
   - `GetImageGenerator()` - Gemini image generation
   - `GetMemeGenerator()` - Reddit meme fetching
   - `GetLangDetector()` - Lingua language detection
+  - `GetTranscriptionService()` - Video/audio transcription service
   - `GetClient()` - WhatsApp client wrapper
 
 ### Command Registration Flow
@@ -200,3 +201,89 @@ transcriptionState := transcription.NewStateManager(db)
 ```
 
 This ensures both session data and transcription settings are persisted in a single database file.
+
+## Video Transcription Architecture
+
+The bot supports comprehensive video transcription with smart UX features including metadata display, language detection, and progress tracking.
+
+### Components
+
+**WebSocket Client** (`internal/services/transcription/websocket_client.go`):
+- Real-time transcription via WebSocket connection to transcription service
+- Progress callbacks for download and transcription status
+- Methods: `GetVideoMetadata()`, `QuickLanguageDetection()`, `TranscribeViaWebSocket()`
+
+**Video Metadata Fetching**:
+- Fetches video title, duration, channel, views before transcription starts
+- Uses `/api/video-info` endpoint
+- Formats duration in human-readable format (e.g., "12min and 13 seconds")
+
+**Smart Language Detection**:
+- Two-phase transcription: First 60 seconds for language detection, then full transcription
+- Automatic model selection: Hebrew → ivrit-ct2, Non-Hebrew → Deepgram
+- Uses Deepgram's built-in language detection (not Lingua)
+
+**Commands**:
+- `/transcribe [url]` - Transcribe video from URL (available to all users)
+- Supports YouTube, Instagram, Twitter, TikTok, and 100+ platforms via yt-dlp
+
+### Smart UX Features
+
+**Verbose Progress Messages**:
+1. Fetch video metadata FIRST before transcription starts
+2. Display: "🎬 Transcribing now '[Video Title]' length: 12min and 13 seconds and Video Language detected: Hebrew"
+3. Show download progress (%) but NOT partial transcription chunks
+4. Present ONLY final complete transcription when done
+
+**Clean Final Result**:
+- Transcription chunks collected silently during processing
+- No streaming partial text to user
+- Final message includes video title, duration, detected language, and complete transcription
+
+### Video Message Auto-Transcription
+
+**Message Flow**:
+1. **Video message received** → Routed by `shouldTranscribe()` in `event_handler.go`
+2. **Download video** → `client.Download(ctx, videoMsg)` downloads video data
+3. **Upload to transcription service** → Uses existing `UploadAudio()` method
+4. **Get video metadata** → Extract duration from WhatsApp message
+5. **Quick language detection** → First 60 seconds of video
+6. **Full transcription** → WebSocket with progress callbacks
+7. **Send complete result** → Edit status message with final transcription
+
+**Progress Updates**:
+- "📹 מוריד וידאו..." (Downloading video)
+- "📤 מעלה וידאו לשירות תמלול..." (Uploading to transcription service)
+- "📊 מקבל מידע על הווידאו..." (Getting video info)
+- "🔍 מזהה שפה..." (Detecting language)
+- "🎬 מתמלל וידאו... (הורדה: 25%)" (Transcribing video, download progress)
+- "🎬 *תמלול הושלם*" (Transcription complete) with full result
+
+### WebSocket Integration
+
+**Endpoint**: `ws://localhost:8009/ws/transcribe`
+
+**Request Format**:
+```go
+type WSTranscriptionRequest struct {
+    URL         string `json:"url"`
+    Language    string `json:"language,omitempty"`
+    Model       string `json:"model,omitempty"`
+    CaptureMode string `json:"captureMode,omitempty"` // "first60" or "full"
+}
+```
+
+**Message Types**:
+- `status` - General status updates
+- `download_progress` - Download percentage and MB downloaded
+- `transcription_chunk` - Partial transcription text (collected silently)
+- `complete` - Final transcription with detected language
+- `error` - Error messages
+
+### Architecture Benefits
+
+- **Efficient**: Parallel language detection and metadata fetching
+- **User-friendly**: Clear progress updates and expectations (video length, title)
+- **Clean UX**: No confusing partial text streaming, only final result
+- **Flexible**: Supports both WhatsApp video messages and external URLs
+- **Smart**: Automatic model selection based on detected language

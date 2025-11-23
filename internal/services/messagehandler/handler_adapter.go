@@ -226,8 +226,78 @@ func (a *HandlerAdapter) GetStateManager() *transcription.StateManager {
 	return a.transcriptionState
 }
 
-func (a *HandlerAdapter) GetTranscriptionService() *transcription.Service {
-	return a.transcriptionSvc
+func (a *HandlerAdapter) GetTranscriptionService() framework.TranscriptionServiceInterface {
+	return &TranscriptionServiceAdapter{service: a.transcriptionSvc}
+}
+
+// TranscriptionServiceAdapter adapts the transcription service to the interface
+type TranscriptionServiceAdapter struct {
+	service *transcription.Service
+}
+
+func (t *TranscriptionServiceAdapter) GetVideoMetadata(ctx context.Context, videoURL string) (*framework.VideoMetadata, error) {
+	meta, err := t.service.GetVideoMetadata(ctx, videoURL)
+	if err != nil {
+		return nil, err
+	}
+	return &framework.VideoMetadata{
+		Title:              meta.Title,
+		Channel:            meta.Channel,
+		DurationSeconds:    meta.DurationSeconds,
+		DurationFormatted:  meta.DurationFormatted,
+		ViewCount:          meta.ViewCount,
+		ViewCountFormatted: meta.ViewCountFormatted,
+		Thumbnail:          meta.Thumbnail,
+		IsYouTube:          meta.IsYouTube,
+	}, nil
+}
+
+func (t *TranscriptionServiceAdapter) QuickLanguageDetection(ctx context.Context, videoURL string) (string, error) {
+	return t.service.QuickLanguageDetection(ctx, videoURL)
+}
+
+func (t *TranscriptionServiceAdapter) TranscribeViaWebSocket(ctx context.Context, request framework.WSTranscriptionRequest, progressCallback func(framework.WSTranscriptionMessage)) (*framework.TranscriptionResponse, error) {
+	// Convert framework types to service types
+	serviceRequest := transcription.WSTranscriptionRequest{
+		URL:         request.URL,
+		Language:    request.Language,
+		Model:       request.Model,
+		CaptureMode: request.CaptureMode,
+	}
+
+	// Wrap the progress callback
+	var serviceCallback func(transcription.WSTranscriptionMessage)
+	if progressCallback != nil {
+		serviceCallback = func(msg transcription.WSTranscriptionMessage) {
+			progressCallback(framework.WSTranscriptionMessage{
+				Type:             msg.Type,
+				Message:          msg.Message,
+				Percent:          msg.Percent,
+				DownloadedMB:     msg.DownloadedMB,
+				TotalMB:          msg.TotalMB,
+				Text:             msg.Text,
+				ChunkIndex:       msg.ChunkIndex,
+				DetectedLanguage: msg.DetectedLanguage,
+				FinalText:        msg.FinalText,
+				Error:            msg.Error,
+			})
+		}
+	}
+
+	result, err := t.service.TranscribeViaWebSocket(ctx, serviceRequest, serviceCallback)
+	if err != nil {
+		return nil, err
+	}
+
+	return &framework.TranscriptionResponse{
+		Success:          result.Success,
+		Status:           result.Status,
+		Model:            result.Model,
+		Language:         result.Language,
+		Text:             result.Text,
+		Confidence:       result.Confidence,
+		DetectedLanguage: result.DetectedLanguage,
+	}, nil
 }
 
 // LangDetectorAdapter adapts the language detector to the interface

@@ -12,8 +12,8 @@ import (
 )
 
 func shouldTranscribe(msg *waProto.Message, chatJID types.JID, stateManager *transcription.StateManager) bool {
-	// Check if it's an audio message
-	if msg.GetAudioMessage() == nil {
+	// Check if it's an audio or video message
+	if msg.GetAudioMessage() == nil && msg.GetVideoMessage() == nil {
 		return false
 	}
 
@@ -137,4 +137,158 @@ func (h *WhatsMeowEventHandler) handleAudioTranscription(msg *waProto.Message, m
 	fmt.Printf("[DEBUG] Transcription message edited successfully for chat %s\n", msgInfo.Chat.String())
 
 	return nil
+}
+
+func (h *WhatsMeowEventHandler) handleVideoTranscription(msg *waProto.Message, msgInfo types.MessageInfo) error {
+	ctx := context.Background()
+
+	// Send initial "Downloading video..." status message
+	senderJID := msgInfo.Chat
+	if msgInfo.Chat.Server == "g.us" {
+		senderJID = types.NewJID(msgInfo.Chat.User, "s.whatsapp.net")
+	}
+
+	initialMsg := &waProto.Message{
+		ExtendedTextMessage: &waProto.ExtendedTextMessage{
+			Text: proto.String("📹 מוריד וידאו..."),
+			ContextInfo: &waProto.ContextInfo{
+				StanzaID:    proto.String(msgInfo.ID),
+				Participant: proto.String(senderJID.String()),
+			},
+		},
+	}
+
+	resp, err := h.client.SendMessage(ctx, msgInfo.Chat, initialMsg)
+	if err != nil {
+		fmt.Printf("Failed to send 'Downloading video...' message: %v\n", err)
+		return nil
+	}
+
+	fmt.Printf("Sent 'Downloading video...' status message (ID: %s)\n", resp.ID)
+
+	// Download video using whatsmeow's client.Download()
+	videoMsg := msg.GetVideoMessage()
+	videoData, err := h.client.Download(ctx, videoMsg)
+	if err != nil {
+		h.editStatusMessage(ctx, msgInfo.Chat, resp.ID, msgInfo.ID, senderJID, "❌ שגיאה בהורדת הווידאו")
+		return fmt.Errorf("failed to download video: %w", err)
+	}
+
+	// Save to temp file
+	tmpFile, err := os.CreateTemp("", "whatsapp_video_*.mp4")
+	if err != nil {
+		h.editStatusMessage(ctx, msgInfo.Chat, resp.ID, msgInfo.ID, senderJID, "❌ שגיאה בשמירת הווידאו")
+		return fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
+	_, err = tmpFile.Write(videoData)
+	if err != nil {
+		h.editStatusMessage(ctx, msgInfo.Chat, resp.ID, msgInfo.ID, senderJID, "❌ שגיאה בשמירת הווידאו")
+		return fmt.Errorf("failed to write video data: %w", err)
+	}
+	tmpFile.Close()
+
+	// Upload video to transcription service
+	h.editStatusMessage(ctx, msgInfo.Chat, resp.ID, msgInfo.ID, senderJID, "📤 מעלה וידאו לשירות תמלול...")
+	uploadResp, err := h.transcriptionSvc.UploadAudio(ctx, tmpFile.Name())
+	if err != nil {
+		h.editStatusMessage(ctx, msgInfo.Chat, resp.ID, msgInfo.ID, senderJID, "❌ שגיאה בהעלאת הווידאו")
+		fmt.Printf("Failed to upload video: %v\n", err)
+		return nil
+	}
+
+	// Construct URL for the uploaded file
+	videoURL := fmt.Sprintf("/app/uploads/%s", uploadResp.FileID)
+
+	// Get video metadata (duration, etc.)
+	h.editStatusMessage(ctx, msgInfo.Chat, resp.ID, msgInfo.ID, senderJID, "📊 מקבל מידע על הווידאו...")
+
+	// For WhatsApp videos, we don't have full metadata, so create basic metadata
+	videoLengthSeconds := int(videoMsg.GetSeconds())
+	videoDuration := transcription.FormatDuration(videoLengthSeconds)
+
+	// Get language preference
+	language, err := h.transcriptionState.GetLanguage(ctx, msgInfo.Chat)
+	if err != nil {
+		language = "he" // Default to Hebrew
+	}
+
+	// Quick language detection from first 60 seconds
+	h.editStatusMessage(ctx, msgInfo.Chat, resp.ID, msgInfo.ID, senderJID, "🔍 מזהה שפה...")
+	detectedLangCode, err := h.transcriptionSvc.QuickLanguageDetection(ctx, videoURL)
+	if err != nil {
+		fmt.Printf("Language detection failed, using default: %v\n", err)
+		detectedLangCode = language
+	}
+
+	// Determine optimal model
+	model := "deepgram"
+	languageName := detectedLangCode
+	if detectedLangCode == "he" || detectedLangCode == "iw" {
+		model = "ivrit-ct2"
+		languageName = "Hebrew"
+	}
+
+	// Show verbose progress message
+	verboseMsg := fmt.Sprintf("🎬 מתמלל וידאו...\n⏱️ משך: %s\n🔤 שפה מזוהה: %s", videoDuration, languageName)
+	h.editStatusMessage(ctx, msgInfo.Chat, resp.ID, msgInfo.ID, senderJID, verboseMsg)
+
+	// Full transcription with progress tracking
+	request := transcription.WSTranscriptionRequest{
+		URL:         videoURL,
+		Language:    detectedLangCode,
+		Model:       model,
+		CaptureMode: "full",
+	}
+
+	lastPercent := 0.0
+	progressCallback := func(wsMsg transcription.WSTranscriptionMessage) {
+		if wsMsg.Type == "download_progress" {
+			// Update only every 25%
+			if wsMsg.Percent-lastPercent >= 25.0 || wsMsg.Percent >= 99.0 {
+				lastPercent = wsMsg.Percent
+				progressMsg := fmt.Sprintf("🎬 מתמלל וידאו... (הורדה: %.0f%%)\n⏱️ משך: %s\n🔤 שפה מזוהה: %s",
+					wsMsg.Percent, videoDuration, languageName)
+				h.editStatusMessage(ctx, msgInfo.Chat, resp.ID, msgInfo.ID, senderJID, progressMsg)
+			}
+		}
+		// DO NOT show transcription chunks - collect silently
+	}
+
+	result, err := h.transcriptionSvc.TranscribeViaWebSocket(ctx, request, progressCallback)
+	if err != nil {
+		h.editStatusMessage(ctx, msgInfo.Chat, resp.ID, msgInfo.ID, senderJID, "❌ שגיאה בתמלול הווידאו")
+		fmt.Printf("Transcription failed: %v\n", err)
+		return nil
+	}
+
+	// Present final complete transcription
+	finalResponse := fmt.Sprintf("🎬 *תמלול הושלם*\n\n⏱️ משך: %s\n🔤 שפה: %s\n\n📝 *תמלול:*\n\n%s",
+		videoDuration, languageName, result.Text)
+
+	h.editStatusMessage(ctx, msgInfo.Chat, resp.ID, msgInfo.ID, senderJID, finalResponse)
+
+	fmt.Printf("Video transcription completed successfully for chat %s\n", msgInfo.Chat.String())
+	return nil
+}
+
+// Helper function to edit status messages
+func (h *WhatsMeowEventHandler) editStatusMessage(ctx context.Context, chatJID types.JID, messageID string, replyToID string, senderJID types.JID, text string) {
+	updatedMsg := &waProto.Message{
+		ExtendedTextMessage: &waProto.ExtendedTextMessage{
+			Text: proto.String(text),
+			ContextInfo: &waProto.ContextInfo{
+				StanzaID:    proto.String(replyToID),
+				Participant: proto.String(senderJID.String()),
+			},
+		},
+	}
+
+	editMsg := h.client.BuildEdit(chatJID, messageID, updatedMsg)
+	_, err := h.client.SendMessage(ctx, chatJID, editMsg)
+	if err != nil {
+		fmt.Printf("Failed to edit status message: %v\n", err)
+	}
 }

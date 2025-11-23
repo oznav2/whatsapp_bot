@@ -71,6 +71,7 @@ type HandlerInterface interface {
 	GetImageGenerator() ImageGeneratorInterface
 	GetMemeGenerator() MemeGeneratorInterface
 	GetLangDetector() LangDetectorInterface
+	GetTranscriptionService() TranscriptionServiceInterface
 }
 
 type MediaType int
@@ -124,4 +125,51 @@ type Meme struct {
 
 type LangDetectorInterface interface {
 	DetectLanguage(text string) (string, error)
+}
+
+type TranscriptionServiceInterface interface {
+	GetVideoMetadata(ctx context.Context, videoURL string) (*VideoMetadata, error)
+	QuickLanguageDetection(ctx context.Context, videoURL string) (string, error)
+	TranscribeViaWebSocket(ctx context.Context, request WSTranscriptionRequest, progressCallback func(WSTranscriptionMessage)) (*TranscriptionResponse, error)
+}
+
+type VideoMetadata struct {
+	Title              string `json:"title"`
+	Channel            string `json:"channel"`
+	DurationSeconds    int    `json:"duration_seconds"`
+	DurationFormatted  string `json:"duration_formatted"`
+	ViewCount          int    `json:"view_count"`
+	ViewCountFormatted string `json:"view_count_formatted"`
+	Thumbnail          string `json:"thumbnail"`
+	IsYouTube          bool   `json:"is_youtube"`
+}
+
+type WSTranscriptionRequest struct {
+	URL         string `json:"url"`
+	Language    string `json:"language,omitempty"`
+	Model       string `json:"model,omitempty"`
+	CaptureMode string `json:"captureMode,omitempty"`
+}
+
+type WSTranscriptionMessage struct {
+	Type             string  `json:"type,omitempty"`
+	Message          string  `json:"message,omitempty"`
+	Percent          float64 `json:"percent,omitempty"`
+	DownloadedMB     float64 `json:"downloaded_mb,omitempty"`
+	TotalMB          float64 `json:"total_mb,omitempty"`
+	Text             string  `json:"text,omitempty"`
+	ChunkIndex       int     `json:"chunk_index,omitempty"`
+	DetectedLanguage string  `json:"detected_language,omitempty"`
+	FinalText        string  `json:"final_text,omitempty"`
+	Error            string  `json:"error,omitempty"`
+}
+
+type TranscriptionResponse struct {
+	Success          bool
+	Status           string
+	Model            string
+	Language         string
+	Text             string
+	Confidence       *float64
+	DetectedLanguage string
 }

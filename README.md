@@ -17,7 +17,8 @@ A powerful WhatsApp bot that provides real-time translation, media downloading, 
 
 ### Core Capabilities
 - **🌐 Real-time Translation**: Translate messages between 20+ languages using Google's Gemini AI
-- **🎤 Audio Transcription**: Automatic transcription of voice messages with per-chat controls
+- **🎤 Audio & Video Transcription**: Automatic transcription of voice and video messages with smart language detection
+- **🎬 URL Video Transcription**: Transcribe videos from YouTube, Instagram, Twitter, TikTok, and 100+ platforms
 - **📥 Media Downloader**: Download videos and images from YouTube, Instagram, Twitter, and more
 - **🤖 AI-Powered**: Leverages Google Gemini 2.0 for translation and image generation
 - **🎮 Entertainment**: Fun commands including memes, random emojis, and more
@@ -163,6 +164,7 @@ This helps with:
 - `/supportedlangs` - List all supported languages
 - `/download <url>` - Download media from social platforms
 - `/dl <url>` - Alias for download
+- `/transcribe <url>` - Transcribe video from URL (YouTube, Instagram, TikTok, Twitter, etc.)
 - `/hibp <phone_or_identifier>` - Check if a phone or identifier has been exposed in data breaches, focusing on HiTeckGroop.in (owner only) - [Documentation](docs/HIBP_COMMAND.md)
 
 ### Fun Commands
@@ -178,8 +180,26 @@ This helps with:
 - `/gettemp` - Show current temperature
 
 ### Transcription Commands
-- `/tenable [language]` - Enable audio transcription for this chat (default: Hebrew)
-- `/tdisable` - Disable audio transcription for this chat
+- `/tenable [language]` - Enable audio/video transcription for this chat (default: Hebrew)
+- `/tdisable` - Disable audio/video transcription for this chat
+- `/transcribe <url>` - Transcribe video from URL with smart language detection
+
+#### Video Transcription Features
+When using `/transcribe` or sending video messages (with `/tenable` enabled), the bot provides:
+
+- **📊 Smart UX**: Fetches video metadata (title, duration) before transcription starts
+- **🔍 Automatic Language Detection**: Uses first 60 seconds to detect language and select optimal model
+- **🎯 Model Selection**: Hebrew videos → ivrit-ct2 (optimized), Non-Hebrew → Deepgram (cloud-based)
+- **📈 Progress Updates**: Shows download progress but NOT partial transcription (clean UX)
+- **✅ Complete Results**: Presents only final complete transcription with video details
+- **🌐 Platform Support**: YouTube, Instagram, Twitter/X, TikTok, Facebook, and 100+ platforms
+
+Example workflow:
+1. User: `/transcribe https://youtube.com/watch?v=...`
+2. Bot: "📊 Getting video info..."
+3. Bot: "🔍 Detecting language... Video: 'Title' Duration: 5min and 30 seconds"
+4. Bot: "🎬 Transcribing now 'Title' length: 5min and 30 seconds and Video Language detected: Hebrew"
+5. Bot: "🎬 **Transcription complete** [full transcription with metadata]"
 
 ## 🏗️ Architecture
 

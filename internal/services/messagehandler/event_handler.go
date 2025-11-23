@@ -19,10 +19,17 @@ import (
 
 // handleMessage uses the new command system
 func (h *WhatsMeowEventHandler) handleMessage(msg *waProto.Message, msgInfo types.MessageInfo) {
-	// Check if this is an audio message that should be transcribed
+	// Check if this is an audio or video message that should be transcribed
 	if shouldTranscribe(msg, msgInfo.Chat, h.transcriptionState) {
-		if err := h.handleAudioTranscription(msg, msgInfo); err != nil {
-			fmt.Printf("Audio transcription error: %v\n", err)
+		// Route to appropriate handler based on message type
+		if msg.GetAudioMessage() != nil {
+			if err := h.handleAudioTranscription(msg, msgInfo); err != nil {
+				fmt.Printf("Audio transcription error: %v\n", err)
+			}
+		} else if msg.GetVideoMessage() != nil {
+			if err := h.handleVideoTranscription(msg, msgInfo); err != nil {
+				fmt.Printf("Video transcription error: %v\n", err)
+			}
 		}
 		return // Don't process as command
 	}
@@ -116,6 +123,10 @@ func (h *WhatsMeowEventHandler) InitializeCommands() error {
 
 	if err := registry.Register(utility.NewHIBPCommand()); err != nil {
 		return fmt.Errorf("failed to register hibp command: %w", err)
+	}
+
+	if err := registry.Register(utility.NewTranscribeCommand()); err != nil {
+		return fmt.Errorf("failed to register transcribe command: %w", err)
 	}
 
 	// Register admin commands
