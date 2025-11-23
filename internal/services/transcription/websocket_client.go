@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -39,24 +38,37 @@ func (s *Service) GetVideoMetadata(ctx context.Context, videoURL string) (*Video
 	// Send request
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
+		// If video-info endpoint doesn't exist, return basic metadata
+		return &VideoMetadata{
+			Title:           "",
+			DurationSeconds: 0,
+		}, nil
 	}
 	defer resp.Body.Close()
 
 	// Check status code
 	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("video-info failed with status %d: %s", resp.StatusCode, string(bodyBytes))
+		// If endpoint fails, return basic metadata instead of error
+		return &VideoMetadata{
+			Title:           "",
+			DurationSeconds: 0,
+		}, nil
 	}
 
 	// Parse response
 	var result VideoInfoResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+		return &VideoMetadata{
+			Title:           "",
+			DurationSeconds: 0,
+		}, nil
 	}
 
 	if !result.Success {
-		return nil, fmt.Errorf("video-info failed: %s", result.Error)
+		return &VideoMetadata{
+			Title:           "",
+			DurationSeconds: 0,
+		}, nil
 	}
 
 	return &result.Metadata, nil
@@ -64,30 +76,42 @@ func (s *Service) GetVideoMetadata(ctx context.Context, videoURL string) (*Video
 
 // QuickLanguageDetection performs fast language detection using first 60 seconds
 func (s *Service) QuickLanguageDetection(ctx context.Context, videoURL string) (string, error) {
-	var detectedLang string
-
-	// Create WebSocket request for first 60 seconds
-	request := WSTranscriptionRequest{
+	// Try Hebrew first (ivrit-ct2 model) since Deepgram doesn't support Hebrew well
+	hebrewRequest := WSTranscriptionRequest{
 		URL:         videoURL,
+		Language:    "he",
+		Model:       "ivrit-ct2",
 		CaptureMode: "first60",
-		Model:       "deepgram", // Use Deepgram for language detection
 	}
 
-	// Progress callback that captures detected language
-	progressCallback := func(msg WSTranscriptionMessage) {
+	result, err := s.TranscribeViaWebSocket(ctx, hebrewRequest, nil)
+	if err == nil && result != nil && strings.TrimSpace(result.Text) != "" {
+		// If Hebrew transcription succeeded and returned text, it's Hebrew
+		return "he", nil
+	}
+
+	// If Hebrew failed, try Deepgram with auto-detect for other languages
+	deepgramRequest := WSTranscriptionRequest{
+		URL:         videoURL,
+		CaptureMode: "first60",
+		Model:       "deepgram",
+	}
+
+	var detectedLang string
+	deepgramCallback := func(msg WSTranscriptionMessage) {
 		if msg.Type == "complete" && msg.DetectedLanguage != "" {
 			detectedLang = msg.DetectedLanguage
 		}
 	}
 
-	// Run transcription
-	_, err := s.TranscribeViaWebSocket(ctx, request, progressCallback)
+	result, err = s.TranscribeViaWebSocket(ctx, deepgramRequest, deepgramCallback)
 	if err != nil {
-		return "", fmt.Errorf("failed to detect language: %w", err)
+		// If both failed, default to English
+		return "en", nil
 	}
 
-	if detectedLang == "" {
-		return "unknown", nil
+	if detectedLang == "" || detectedLang == "unknown" {
+		return "en", nil
 	}
 
 	return detectedLang, nil
