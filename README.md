@@ -17,8 +17,10 @@ A powerful WhatsApp bot that provides real-time translation, media downloading, 
 
 ### Core Capabilities
 - **🌐 Real-time Translation**: Translate messages between 20+ languages using Google's Gemini AI
-- **🎤 Audio & Video Transcription**: Automatic transcription of voice and video messages with smart language detection
-- **🎬 URL Video Transcription**: Transcribe videos from YouTube, Instagram, Twitter, TikTok, and 100+ platforms
+- **🎤 Auto Audio & Video Transcription**: Enable automatic transcription with `/tenable` for voice notes, video messages, and URLs
+- **🔗 Smart URL Detection**: When `/tenable` is active, automatically transcribe any video URL sent in chat
+- **🎬 Manual Video Transcription**: Transcribe videos from YouTube, Instagram, Twitter, TikTok, and 100+ platforms on demand
+- **🎯 Multi-Model Support**: Hebrew-optimized Ivrit CT2, multilingual Whisper V3 Turbo, and cloud-based Deepgram Nova-3
 - **📥 Media Downloader**: Download videos and images from YouTube, Instagram, Twitter, and more
 - **🤖 AI-Powered**: Leverages Google Gemini 2.0 for translation and image generation
 - **🎮 Entertainment**: Fun commands including memes, random emojis, and more
@@ -180,35 +182,71 @@ This helps with:
 - `/gettemp` - Show current temperature
 
 ### Transcription Commands
-- `/tenable [language]` - Enable automatic audio/video transcription for this chat (default: Hebrew)
-- `/tdisable` - Disable automatic audio/video transcription for this chat
+
+#### Manual Transcription (Commands)
 - `/transcribe <url>` - Transcribe Hebrew video using Ivrit CT2 (Hebrew-optimized local model)
 - `/transcriben <url>` - Transcribe English/multilingual video using Whisper V3 Turbo (local model)
 - `/transcribedg <url>` - Transcribe video using Deepgram Nova-3 (cloud-based API with auto language detection)
 
-#### Video Transcription Features
-When using transcription commands, the bot provides:
-
-- **🎬 Clean UX**: Two-message flow - YouTube preview stays visible, transcription appears separately
-- **🌐 Platform Support**: YouTube, Instagram, Twitter/X, TikTok, Facebook, and 100+ platforms via yt-dlp
-- **🎯 Model Selection**:
-  - **Ivrit CT2** (`/transcribe`) - Hebrew-optimized local model (ivrit-ai/whisper-large-v3-turbo-ct2)
-  - **Whisper V3 Turbo** (`/transcriben`) - Fast multilingual local model for English and other languages
-  - **Deepgram Nova-3** (`/transcribedg`) - Cloud-based API with automatic language detection
-- **📊 Video Metadata**: Automatically extracts title, duration, and thumbnail from video URL
-- **⚡ Silent Processing**: All processing happens in background without spam messages
-- **✅ Complete Results**: Final message includes video title, duration, and full transcription
-
-Example workflow:
-1. User: `/transcribe https://youtube.com/watch?v=CCxdL3pbMl8`
-2. Bot sends message 1: `https://youtube.com/watch?v=CCxdL3pbMl8` (YouTube preview visible)
-3. Bot sends message 2: Complete transcription with title, duration, and full text
-
 #### Automatic Transcription
-Enable automatic transcription with `/tenable` to transcribe all audio and video messages in a chat:
-- Supports voice notes, video messages, and audio files
-- Uses appropriate model based on configured language
-- Per-chat settings (enable/disable individually for each conversation)
+- `/tenable [language]` - Enable automatic transcription for this chat (default: Hebrew)
+- `/tdisable` - Disable automatic transcription for this chat
+
+When `/tenable` is active, the bot automatically transcribes:
+- **🎤 Audio messages**: Voice notes and audio files
+- **🎬 Video messages**: Video files sent directly in chat
+- **🔗 URLs in text messages**: YouTube, Instagram, Twitter, TikTok, and 100+ platforms
+
+**Language Routing**:
+- `/tenable` (or `/tenable he`) → Uses **Ivrit CT2** for Hebrew content
+- `/tenable en` → Uses **Whisper V3 Turbo** for English/multilingual content
+- Change language anytime by running `/tenable` again with different language code
+
+**Per-Chat Settings**: Each chat has its own transcription settings (enable/disable independently)
+
+#### Transcription Features
+
+**Platform Support**:
+- **🌐 100+ Platforms**: YouTube, Instagram, Twitter/X, TikTok, Facebook, Reddit, and more via yt-dlp
+- **🎯 Smart Model Selection**:
+  - **Ivrit CT2** - Hebrew-optimized local model (ivrit-ai/whisper-large-v3-turbo-ct2)
+  - **Whisper V3 Turbo** - Fast multilingual local model
+  - **Deepgram Nova-3** - Cloud-based API with auto language detection
+- **📊 Video Metadata**: Automatically extracts title, duration, and thumbnail
+- **⚡ Progress Tracking**: Real-time download and transcription progress updates
+- **✅ Complete Results**: Final message includes video title, duration, detected language, and full transcription
+
+**Example: Automatic URL Transcription**:
+```
+User: /tenable                    # Enable Hebrew transcription
+Bot: ✅ Transcription enabled
+
+User: https://youtube.com/watch?v=xyz
+Bot: 🔗 מוריד מידע על הווידאו...
+     📊 מקבל מידע על הווידאו...
+     🎬 מתמלל בעברית...
+     🎬 מתמלל וידאו... (הורדה: 25%)
+     🎬 *תמלול הושלם*
+
+     ⏱️ משך: 5min and 23 seconds
+     🔤 שפה: Hebrew
+
+     📝 *תמלול:*
+     [Complete Hebrew transcription]
+```
+
+**Example: Manual Command Transcription**:
+```
+User: /transcribe https://youtube.com/watch?v=xyz
+Bot: [YouTube preview link]
+Bot: 🎬 *תמלול הושלם* (Ivrit CT2)
+
+     📹 סרטון: "Video Title Here"
+     ⏱️ משך: 5min and 23 seconds
+
+     📝 *תמלול:*
+     [Complete transcription]
+```
 
 ## 🏗️ Architecture
 
