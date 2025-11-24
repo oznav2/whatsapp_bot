@@ -29,7 +29,10 @@ func (c *TranscribeCommand) Execute(ctx *framework.Context) error {
 		return ctx.Handler.SendResponse(ctx.MessageInfo, "❌ שירות התמלול לא זמין")
 	}
 
-	// Send single initial status
+	// Send YouTube URL first to create preview that stays visible
+	ctx.Handler.SendResponse(ctx.MessageInfo, targetURL)
+
+	// Send initial status
 	ctx.Handler.SendResponse(ctx.MessageInfo, "📊 מקבל מידע ומתמלל עם Ivrit CT2...")
 
 	// Get video metadata from VibeGram service
