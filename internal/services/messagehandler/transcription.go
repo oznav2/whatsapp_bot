@@ -237,7 +237,7 @@ func (h *WhatsMeowEventHandler) handleVideoTranscription(msg *waProto.Message, m
 		// Use the bot's existing language detection on the transcribed text
 		detectedLang, ok := h.detector.DetectLanguage(quickResult.Text)
 		if ok {
-			detectedLangCode = detectedLang.IsoCode639_1().String()
+			detectedLangCode = strings.ToLower(detectedLang.IsoCode639_1().String())
 			// If not Hebrew, use Whisper multilingual
 			if detectedLangCode != "he" && detectedLangCode != "iw" {
 				model = "whisper-v3-turbo"
