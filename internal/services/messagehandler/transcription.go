@@ -200,8 +200,8 @@ func (h *WhatsMeowEventHandler) handleVideoTranscription(msg *waProto.Message, m
 		return nil
 	}
 
-	// Construct URL for the uploaded file
-	videoURL := fmt.Sprintf("/app/uploads/%s", uploadResp.FileID)
+	// Use the file ID directly for uploaded files
+	uploadedFileID := uploadResp.FileID
 
 	// Get video metadata (duration, etc.)
 	h.editStatusMessage(ctx, msgInfo.Chat, resp.ID, msgInfo.ID, senderJID, "📊 מקבל מידע על הווידאו...")
@@ -220,10 +220,10 @@ func (h *WhatsMeowEventHandler) handleVideoTranscription(msg *waProto.Message, m
 	h.editStatusMessage(ctx, msgInfo.Chat, resp.ID, msgInfo.ID, senderJID, "🔍 מזהה שפה...")
 
 	quickRequest := transcription.WSTranscriptionRequest{
-		URL:         videoURL,
-		Language:    "he",
-		Model:       "ivrit-ct2",
-		CaptureMode: "first60",
+		UploadFileID: uploadedFileID,
+		Language:     "he",
+		Model:        "ivrit-ct2",
+		CaptureMode:  "first60",
 	}
 
 	quickResult, _ := h.transcriptionSvc.TranscribeViaWebSocket(ctx, quickRequest, nil)
@@ -238,15 +238,15 @@ func (h *WhatsMeowEventHandler) handleVideoTranscription(msg *waProto.Message, m
 		detectedLang, ok := h.detector.DetectLanguage(quickResult.Text)
 		if ok {
 			detectedLangCode = detectedLang.IsoCode639_1().String()
-			// If not Hebrew, use Deepgram
+			// If not Hebrew, use Whisper multilingual
 			if detectedLangCode != "he" && detectedLangCode != "iw" {
-				model = "deepgram"
+				model = "whisper-v3-turbo"
 				languageName = detectedLangCode
 			}
 		}
 	} else {
-		// Hebrew transcription failed, try Deepgram
-		model = "deepgram"
+		// Hebrew transcription failed, try Whisper multilingual
+		model = "whisper-v3-turbo"
 		detectedLangCode = "en"
 		languageName = "English"
 	}
@@ -257,10 +257,10 @@ func (h *WhatsMeowEventHandler) handleVideoTranscription(msg *waProto.Message, m
 
 	// Full transcription with progress tracking
 	request := transcription.WSTranscriptionRequest{
-		URL:         videoURL,
-		Language:    detectedLangCode,
-		Model:       model,
-		CaptureMode: "full",
+		UploadFileID: uploadedFileID,
+		Language:     detectedLangCode,
+		Model:        model,
+		CaptureMode:  "full",
 	}
 
 	lastPercent := 0.0
