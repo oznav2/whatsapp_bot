@@ -48,15 +48,8 @@ func (c *TranscribeEnCommand) Execute(ctx *framework.Context) error {
 		videoDuration = formatDuration(metadata.DurationSeconds)
 	}
 
-	thumbnailURL := metadata.Thumbnail
-
-	// Display video info
+	// Display video info (no thumbnail URL - YouTube preview stays visible)
 	ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("🎬 מתמלל: \"%s\"\n⏱️ משך: %s\n🤖 Whisper V3 Turbo", videoTitle, videoDuration))
-
-	// Send thumbnail as separate message so WhatsApp displays it as image
-	if thumbnailURL != "" {
-		ctx.Handler.SendResponse(ctx.MessageInfo, thumbnailURL)
-	}
 
 	// Transcribe using Whisper V3 Turbo (multilingual model)
 	request := framework.WSTranscriptionRequest{

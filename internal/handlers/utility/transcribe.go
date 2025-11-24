@@ -48,16 +48,9 @@ func (c *TranscribeCommand) Execute(ctx *framework.Context) error {
 		videoDuration = formatDuration(metadata.DurationSeconds)
 	}
 
-	thumbnailURL := metadata.Thumbnail
-
-	// Display video info
+	// Display video info (no thumbnail URL - YouTube preview stays visible)
 	ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("🎬 מתמלל: \"%s\"\n⏱️ משך: %s\n🤖 Ivrit CT2",
 		videoTitle, videoDuration))
-
-	// Send thumbnail as separate message so WhatsApp displays it as image
-	if thumbnailURL != "" {
-		ctx.Handler.SendResponse(ctx.MessageInfo, thumbnailURL)
-	}
 
 	// Transcribe using Ivrit CT2 (Hebrew-optimized model)
 	request := framework.WSTranscriptionRequest{
