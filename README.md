@@ -180,26 +180,35 @@ This helps with:
 - `/gettemp` - Show current temperature
 
 ### Transcription Commands
-- `/tenable [language]` - Enable audio/video transcription for this chat (default: Hebrew)
-- `/tdisable` - Disable audio/video transcription for this chat
-- `/transcribe <url>` - Transcribe video from URL with smart language detection
+- `/tenable [language]` - Enable automatic audio/video transcription for this chat (default: Hebrew)
+- `/tdisable` - Disable automatic audio/video transcription for this chat
+- `/transcribe <url>` - Transcribe Hebrew video using Ivrit CT2 (Hebrew-optimized local model)
+- `/transcriben <url>` - Transcribe English/multilingual video using Whisper V3 Turbo (local model)
+- `/transcribedg <url>` - Transcribe video using Deepgram Nova-3 (cloud-based API with auto language detection)
 
 #### Video Transcription Features
-When using `/transcribe` or sending video messages (with `/tenable` enabled), the bot provides:
+When using transcription commands, the bot provides:
 
-- **📊 Smart UX**: Fetches video metadata (title, duration) before transcription starts
-- **🔍 Automatic Language Detection**: Uses first 60 seconds to detect language and select optimal model
-- **🎯 Model Selection**: Hebrew videos → ivrit-ct2 (optimized), Non-Hebrew → Deepgram (cloud-based)
-- **📈 Progress Updates**: Shows download progress but NOT partial transcription (clean UX)
-- **✅ Complete Results**: Presents only final complete transcription with video details
-- **🌐 Platform Support**: YouTube, Instagram, Twitter/X, TikTok, Facebook, and 100+ platforms
+- **🎬 Clean UX**: Two-message flow - YouTube preview stays visible, transcription appears separately
+- **🌐 Platform Support**: YouTube, Instagram, Twitter/X, TikTok, Facebook, and 100+ platforms via yt-dlp
+- **🎯 Model Selection**:
+  - **Ivrit CT2** (`/transcribe`) - Hebrew-optimized local model (ivrit-ai/whisper-large-v3-turbo-ct2)
+  - **Whisper V3 Turbo** (`/transcriben`) - Fast multilingual local model for English and other languages
+  - **Deepgram Nova-3** (`/transcribedg`) - Cloud-based API with automatic language detection
+- **📊 Video Metadata**: Automatically extracts title, duration, and thumbnail from video URL
+- **⚡ Silent Processing**: All processing happens in background without spam messages
+- **✅ Complete Results**: Final message includes video title, duration, and full transcription
 
 Example workflow:
-1. User: `/transcribe https://youtube.com/watch?v=...`
-2. Bot: "📊 Getting video info..."
-3. Bot: "🔍 Detecting language... Video: 'Title' Duration: 5min and 30 seconds"
-4. Bot: "🎬 Transcribing now 'Title' length: 5min and 30 seconds and Video Language detected: Hebrew"
-5. Bot: "🎬 **Transcription complete** [full transcription with metadata]"
+1. User: `/transcribe https://youtube.com/watch?v=CCxdL3pbMl8`
+2. Bot sends message 1: `https://youtube.com/watch?v=CCxdL3pbMl8` (YouTube preview visible)
+3. Bot sends message 2: Complete transcription with title, duration, and full text
+
+#### Automatic Transcription
+Enable automatic transcription with `/tenable` to transcribe all audio and video messages in a chat:
+- Supports voice notes, video messages, and audio files
+- Uses appropriate model based on configured language
+- Per-chat settings (enable/disable individually for each conversation)
 
 ## 🏗️ Architecture
 
