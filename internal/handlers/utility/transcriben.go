@@ -58,14 +58,14 @@ func (c *TranscribeEnCommand) Execute(ctx *framework.Context) error {
 
 	result, err := transcriptionSvc.TranscribeViaWebSocket(ctx.Context, request, nil)
 	if err != nil {
-		return ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("❌ שגיאה בתמלול: %v", err))
+		return ctx.Handler.SendMessage(ctx.MessageInfo.Chat, fmt.Sprintf("❌ שגיאה בתמלול: %v", err))
 	}
 
-	// Final response (thumbnail already sent as separate image)
+	// Final response - send as new message directly to chat (not tied to msgInfo)
 	finalResponse := fmt.Sprintf("🎬 *תמלול הושלם* (Whisper V3 Turbo)\n\n📹 סרטון: \"%s\"\n⏱️ משך: %s\n\n📝 *תמלול:*\n\n%s",
 		videoTitle, videoDuration, result.Text)
 
-	return ctx.Handler.SendResponse(ctx.MessageInfo, finalResponse)
+	return ctx.Handler.SendMessage(ctx.MessageInfo.Chat, finalResponse)
 }
 
 func (c *TranscribeEnCommand) Metadata() *framework.Metadata {

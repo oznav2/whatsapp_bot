@@ -58,7 +58,7 @@ func (c *TranscribeDGCommand) Execute(ctx *framework.Context) error {
 
 	result, err := transcriptionSvc.TranscribeViaWebSocket(ctx.Context, request, nil)
 	if err != nil {
-		return ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("❌ שגיאה בתמלול: %v", err))
+		return ctx.Handler.SendMessage(ctx.MessageInfo.Chat, fmt.Sprintf("❌ שגיאה בתמלול: %v", err))
 	}
 
 	// Use detected language from Deepgram result
@@ -70,11 +70,11 @@ func (c *TranscribeDGCommand) Execute(ctx *framework.Context) error {
 		detectedLanguage = "Unknown"
 	}
 
-	// Final response (thumbnail already sent as separate image)
+	// Final response - send as new message directly to chat (not tied to msgInfo)
 	finalResponse := fmt.Sprintf("🎬 *תמלול הושלם* (Deepgram Nova-3 ☁️)\n\n📹 סרטון: \"%s\"\n⏱️ משך: %s\n🔤 שפה: %s\n\n📝 *תמלול:*\n\n%s",
 		videoTitle, videoDuration, detectedLanguage, result.Text)
 
-	return ctx.Handler.SendResponse(ctx.MessageInfo, finalResponse)
+	return ctx.Handler.SendMessage(ctx.MessageInfo.Chat, finalResponse)
 }
 
 func (c *TranscribeDGCommand) Metadata() *framework.Metadata {

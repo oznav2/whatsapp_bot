@@ -60,6 +60,7 @@ type Context struct {
 
 type HandlerInterface interface {
 	SendResponse(msgInfo types.MessageInfo, text string) error
+	SendMessage(chatJID types.JID, text string) error // Send new message directly to chat
 	SendMedia(msgInfo types.MessageInfo, mediaType MediaType, data []byte, caption string) error
 	SendImage(msgInfo types.MessageInfo, upload UploadResponse, caption string) error
 	SendVideo(msgInfo types.MessageInfo, upload UploadResponse, caption string) error

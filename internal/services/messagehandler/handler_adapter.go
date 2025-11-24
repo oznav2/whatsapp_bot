@@ -33,6 +33,10 @@ func (a *HandlerAdapter) SendResponse(msgInfo types.MessageInfo, text string) er
 	return nil
 }
 
+func (a *HandlerAdapter) SendMessage(chatJID types.JID, text string) error {
+	return a.WhatsMeowEventHandler.sendReplyMessage(chatJID, text, "")
+}
+
 func (a *HandlerAdapter) SendMedia(msgInfo types.MessageInfo, mediaType framework.MediaType, data []byte, caption string) error {
 	ctx := context.Background()
 
