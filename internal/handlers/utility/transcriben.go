@@ -29,8 +29,8 @@ func (c *TranscribeEnCommand) Execute(ctx *framework.Context) error {
 		return ctx.Handler.SendResponse(ctx.MessageInfo, "❌ שירות התמלול לא זמין")
 	}
 
-	// Send YouTube URL first to create preview that stays visible
-	ctx.Handler.SendResponse(ctx.MessageInfo, targetURL)
+	// Send YouTube URL as completely new message (not tied to user's message)
+	ctx.Handler.SendMessage(ctx.MessageInfo.Chat, targetURL)
 
 	// Get video metadata from VibeGram service (silently in background)
 	metadata, err := transcriptionSvc.GetVideoMetadata(ctx.Context, targetURL)
