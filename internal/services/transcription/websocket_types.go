@@ -4,10 +4,11 @@ import "fmt"
 
 // WSTranscriptionRequest represents the WebSocket request payload
 type WSTranscriptionRequest struct {
-	URL         string `json:"url"`
-	Language    string `json:"language,omitempty"`
-	Model       string `json:"model,omitempty"`
-	CaptureMode string `json:"captureMode,omitempty"` // "first60" or "full"
+	URL          string `json:"url,omitempty"`
+	UploadFileID string `json:"upload_file_id,omitempty"`
+	Language     string `json:"language,omitempty"`
+	Model        string `json:"model,omitempty"`
+	CaptureMode  string `json:"captureMode,omitempty"` // "first60" or "full"
 }
 
 // WSTranscriptionMessage represents messages received from the WebSocket

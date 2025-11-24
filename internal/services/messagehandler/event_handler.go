@@ -30,6 +30,11 @@ func (h *WhatsMeowEventHandler) handleMessage(msg *waProto.Message, msgInfo type
 			if err := h.handleVideoTranscription(msg, msgInfo); err != nil {
 				fmt.Printf("Video transcription error: %v\n", err)
 			}
+		} else {
+			// Handle URL transcription from text messages
+			if err := h.handleURLTranscription(msg, msgInfo); err != nil {
+				fmt.Printf("URL transcription error: %v\n", err)
+			}
 		}
 		return // Don't process as command
 	}

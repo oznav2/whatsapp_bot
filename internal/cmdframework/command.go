@@ -145,10 +145,11 @@ type VideoMetadata struct {
 }
 
 type WSTranscriptionRequest struct {
-	URL         string `json:"url"`
-	Language    string `json:"language,omitempty"`
-	Model       string `json:"model,omitempty"`
-	CaptureMode string `json:"captureMode,omitempty"`
+	URL          string `json:"url,omitempty"`
+	UploadFileID string `json:"upload_file_id,omitempty"`
+	Language     string `json:"language,omitempty"`
+	Model        string `json:"model,omitempty"`
+	CaptureMode  string `json:"captureMode,omitempty"`
 }
 
 type WSTranscriptionMessage struct {

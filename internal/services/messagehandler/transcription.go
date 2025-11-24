@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/asparkoffire/whatsapp-livetranslate-go/internal/services/transcription"
@@ -13,18 +14,50 @@ import (
 )
 
 func shouldTranscribe(msg *waProto.Message, chatJID types.JID, stateManager *transcription.StateManager) bool {
-	// Check if it's an audio or video message
-	if msg.GetAudioMessage() == nil && msg.GetVideoMessage() == nil {
-		return false
-	}
-
 	// Check if transcription is enabled for this chat
 	enabled, err := stateManager.IsEnabled(context.Background(), chatJID)
 	if err != nil || !enabled {
 		return false
 	}
 
-	return true
+	// Check if it's an audio or video message
+	if msg.GetAudioMessage() != nil || msg.GetVideoMessage() != nil {
+		return true
+	}
+
+	// Check if it's a text message with URL (not a command)
+	text := extractTextFromMessage(msg)
+	if text != "" && !strings.HasPrefix(text, "/") && containsURL(text) {
+		return true
+	}
+
+	return false
+}
+
+// extractTextFromMessage extracts text content from a WhatsApp message
+func extractTextFromMessage(msg *waProto.Message) string {
+	if msg.GetConversation() != "" {
+		return msg.GetConversation()
+	}
+	if msg.GetExtendedTextMessage() != nil {
+		return msg.GetExtendedTextMessage().GetText()
+	}
+	return ""
+}
+
+// containsURL checks if text contains a URL
+func containsURL(text string) bool {
+	return strings.Contains(text, "http://") || strings.Contains(text, "https://")
+}
+
+// extractURL extracts the first URL from text
+func extractURL(text string) string {
+	re := regexp.MustCompile(`https?://[^\s]+`)
+	matches := re.FindStringSubmatch(text)
+	if len(matches) > 0 {
+		return matches[0]
+	}
+	return ""
 }
 
 func (h *WhatsMeowEventHandler) handleAudioTranscription(msg *waProto.Message, msgInfo types.MessageInfo) error {
@@ -316,4 +349,120 @@ func (h *WhatsMeowEventHandler) editStatusMessage(ctx context.Context, chatJID t
 	if err != nil {
 		fmt.Printf("Failed to edit status message: %v\n", err)
 	}
+}
+
+func (h *WhatsMeowEventHandler) handleURLTranscription(msg *waProto.Message, msgInfo types.MessageInfo) error {
+	ctx := context.Background()
+
+	// Extract URL from text
+	text := extractTextFromMessage(msg)
+	targetURL := extractURL(text)
+
+	if targetURL == "" {
+		return nil // No valid URL found
+	}
+
+	// Validate URL format
+	if !strings.HasPrefix(targetURL, "https:") && !strings.HasPrefix(targetURL, "http:") {
+		return nil // Invalid URL
+	}
+
+	// Send initial status message
+	senderJID := msgInfo.Chat
+	if msgInfo.Chat.Server == "g.us" {
+		senderJID = types.NewJID(msgInfo.Chat.User, "s.whatsapp.net")
+	}
+
+	initialMsg := &waProto.Message{
+		ExtendedTextMessage: &waProto.ExtendedTextMessage{
+			Text: proto.String("🔗 מוריד מידע על הווידאו..."),
+			ContextInfo: &waProto.ContextInfo{
+				StanzaID:    proto.String(msgInfo.ID),
+				Participant: proto.String(senderJID.String()),
+			},
+		},
+	}
+
+	resp, err := h.client.SendMessage(ctx, msgInfo.Chat, initialMsg)
+	if err != nil {
+		fmt.Printf("Failed to send status message: %v\n", err)
+		return nil
+	}
+
+	fmt.Printf("Sent 'Loading video info...' status message (ID: %s)\n", resp.ID)
+
+	// Get video metadata
+	h.editStatusMessage(ctx, msgInfo.Chat, resp.ID, msgInfo.ID, senderJID, "📊 מקבל מידע על הווידאו...")
+	metadata, err := h.transcriptionSvc.GetVideoMetadata(ctx, targetURL)
+	if err != nil {
+		h.editStatusMessage(ctx, msgInfo.Chat, resp.ID, msgInfo.ID, senderJID, "❌ שגיאה בקבלת מידע על הווידאו")
+		fmt.Printf("Failed to get video metadata: %v\n", err)
+		return nil
+	}
+
+	videoDuration := metadata.DurationFormatted
+	if videoDuration == "" {
+		videoDuration = transcription.FormatDuration(metadata.DurationSeconds)
+	}
+
+	// Get language preference from state manager
+	language, err := h.transcriptionState.GetLanguage(ctx, msgInfo.Chat)
+	if err != nil {
+		language = "he" // Default to Hebrew
+	}
+
+	// Use language preference directly (no auto-detection for URLs)
+	detectedLangCode := strings.ToLower(language)
+	var languageName string
+	var model string
+
+	// Explicitly route based on configured language
+	if detectedLangCode == "he" || detectedLangCode == "iw" {
+		model = "ivrit-ct2"
+		languageName = "Hebrew"
+		h.editStatusMessage(ctx, msgInfo.Chat, resp.ID, msgInfo.ID, senderJID, "🎬 מתמלל בעברית...")
+	} else {
+		// Use Whisper multilingual for non-Hebrew
+		model = "whisper-v3-turbo"
+		languageName = strings.ToUpper(detectedLangCode)
+		h.editStatusMessage(ctx, msgInfo.Chat, resp.ID, msgInfo.ID, senderJID, fmt.Sprintf("🎬 Transcribing in %s...", languageName))
+	}
+
+	// Full transcription with progress tracking
+	request := transcription.WSTranscriptionRequest{
+		URL:         targetURL,
+		Language:    detectedLangCode,
+		Model:       model,
+		CaptureMode: "full",
+	}
+
+	lastPercent := 0.0
+	progressCallback := func(wsMsg transcription.WSTranscriptionMessage) {
+		if wsMsg.Type == "download_progress" {
+			// Update only every 25%
+			if wsMsg.Percent-lastPercent >= 25.0 || wsMsg.Percent >= 99.0 {
+				lastPercent = wsMsg.Percent
+				progressMsg := fmt.Sprintf("🎬 מתמלל וידאו... (הורדה: %.0f%%)\n⏱️ משך: %s\n🔤 שפה: %s",
+					wsMsg.Percent, videoDuration, languageName)
+				h.editStatusMessage(ctx, msgInfo.Chat, resp.ID, msgInfo.ID, senderJID, progressMsg)
+			}
+		}
+		// DO NOT show transcription chunks - collect silently
+	}
+
+	result, err := h.transcriptionSvc.TranscribeViaWebSocket(ctx, request, progressCallback)
+	if err != nil {
+		h.editStatusMessage(ctx, msgInfo.Chat, resp.ID, msgInfo.ID, senderJID, "❌ שגיאה בתמלול הווידאו")
+		fmt.Printf("Transcription failed: %v\n", err)
+		return nil
+	}
+
+	// Present final complete transcription
+	finalResponse := fmt.Sprintf("🎬 *תמלול הושלם*\n\n⏱️ משך: %s\n🔤 שפה: %s\n\n📝 *תמלול:*\n\n%s",
+		videoDuration, languageName, result.Text)
+
+	h.editStatusMessage(ctx, msgInfo.Chat, resp.ID, msgInfo.ID, senderJID, finalResponse)
+
+	fmt.Printf("URL transcription completed successfully for chat %s\n", msgInfo.Chat.String())
+	return nil
 }
