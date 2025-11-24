@@ -238,8 +238,13 @@ func (h *WhatsMeowEventHandler) handleVideoTranscription(msg *waProto.Message, m
 		detectedLang, ok := h.detector.DetectLanguage(quickResult.Text)
 		if ok {
 			detectedLangCode = strings.ToLower(detectedLang.IsoCode639_1().String())
-			// If not Hebrew, use Whisper multilingual
-			if detectedLangCode != "he" && detectedLangCode != "iw" {
+
+			// Explicitly route Hebrew to ivrit-ct2
+			if detectedLangCode == "he" || detectedLangCode == "iw" {
+				model = "ivrit-ct2"
+				languageName = "Hebrew"
+			} else {
+				// Use Whisper multilingual for non-Hebrew
 				model = "whisper-v3-turbo"
 				languageName = detectedLangCode
 			}
