@@ -32,10 +32,7 @@ func (c *TranscribeCommand) Execute(ctx *framework.Context) error {
 	// Send YouTube URL first to create preview that stays visible
 	ctx.Handler.SendResponse(ctx.MessageInfo, targetURL)
 
-	// Send initial status
-	ctx.Handler.SendResponse(ctx.MessageInfo, "📊 מקבל מידע ומתמלל עם Ivrit CT2...")
-
-	// Get video metadata from VibeGram service
+	// Get video metadata from VibeGram service (silently in background)
 	metadata, err := transcriptionSvc.GetVideoMetadata(ctx.Context, targetURL)
 	if err != nil {
 		return ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("❌ שגיאה בקבלת מידע על הווידאו: %v", err))
@@ -51,11 +48,7 @@ func (c *TranscribeCommand) Execute(ctx *framework.Context) error {
 		videoDuration = formatDuration(metadata.DurationSeconds)
 	}
 
-	// Display video info (no thumbnail URL - YouTube preview stays visible)
-	ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("🎬 מתמלל: \"%s\"\n⏱️ משך: %s\n🤖 Ivrit CT2",
-		videoTitle, videoDuration))
-
-	// Transcribe using Ivrit CT2 (Hebrew-optimized model)
+	// Transcribe using Ivrit CT2 (Hebrew-optimized model) - silently, no progress messages
 	request := framework.WSTranscriptionRequest{
 		URL:         targetURL,
 		Language:    "he",
@@ -63,21 +56,7 @@ func (c *TranscribeCommand) Execute(ctx *framework.Context) error {
 		CaptureMode: "full",
 	}
 
-	lastPercent := 0.0
-	progressCallback := func(msg framework.WSTranscriptionMessage) {
-		switch msg.Type {
-		case "download_progress":
-			// Only show 50% to minimize messages
-			if msg.Percent >= 50.0 && lastPercent < 50.0 {
-				lastPercent = msg.Percent
-				ctx.Handler.SendResponse(ctx.MessageInfo, "📥 מוריד... 50%")
-			}
-		case "transcription_chunk":
-			// Collect silently
-		}
-	}
-
-	result, err := transcriptionSvc.TranscribeViaWebSocket(ctx.Context, request, progressCallback)
+	result, err := transcriptionSvc.TranscribeViaWebSocket(ctx.Context, request, nil)
 	if err != nil {
 		return ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("❌ שגיאה בתמלול: %v", err))
 	}

@@ -32,10 +32,7 @@ func (c *TranscribeEnCommand) Execute(ctx *framework.Context) error {
 	// Send YouTube URL first to create preview that stays visible
 	ctx.Handler.SendResponse(ctx.MessageInfo, targetURL)
 
-	// Send initial status
-	ctx.Handler.SendResponse(ctx.MessageInfo, "📊 מקבל מידע ומתמלל עם Whisper V3 Turbo...")
-
-	// Get video metadata from VibeGram service
+	// Get video metadata from VibeGram service (silently in background)
 	metadata, err := transcriptionSvc.GetVideoMetadata(ctx.Context, targetURL)
 	if err != nil {
 		return ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("❌ שגיאה בקבלת מידע על הווידאו: %v", err))
@@ -51,10 +48,7 @@ func (c *TranscribeEnCommand) Execute(ctx *framework.Context) error {
 		videoDuration = formatDuration(metadata.DurationSeconds)
 	}
 
-	// Display video info (no thumbnail URL - YouTube preview stays visible)
-	ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("🎬 מתמלל: \"%s\"\n⏱️ משך: %s\n🤖 Whisper V3 Turbo", videoTitle, videoDuration))
-
-	// Transcribe using Whisper V3 Turbo (multilingual model)
+	// Transcribe using Whisper V3 Turbo (multilingual model) - silently, no progress messages
 	request := framework.WSTranscriptionRequest{
 		URL:         targetURL,
 		Language:    "en",
@@ -62,21 +56,7 @@ func (c *TranscribeEnCommand) Execute(ctx *framework.Context) error {
 		CaptureMode: "full",
 	}
 
-	lastPercent := 0.0
-	progressCallback := func(msg framework.WSTranscriptionMessage) {
-		switch msg.Type {
-		case "download_progress":
-			// Only show 50% to minimize messages
-			if msg.Percent >= 50.0 && lastPercent < 50.0 {
-				lastPercent = msg.Percent
-				ctx.Handler.SendResponse(ctx.MessageInfo, "📥 מוריד... 50%")
-			}
-		case "transcription_chunk", "transcription":
-			// Collect silently (VibeGram sends these)
-		}
-	}
-
-	result, err := transcriptionSvc.TranscribeViaWebSocket(ctx.Context, request, progressCallback)
+	result, err := transcriptionSvc.TranscribeViaWebSocket(ctx.Context, request, nil)
 	if err != nil {
 		return ctx.Handler.SendResponse(ctx.MessageInfo, fmt.Sprintf("❌ שגיאה בתמלול: %v", err))
 	}
