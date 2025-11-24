@@ -140,8 +140,8 @@ func (h *WhatsMeowEventHandler) SendResponse(msgInfo types.MessageInfo, response
 			fmt.Println("Edit failed:", err)
 		}
 	} else {
-		// Quote the message that initiated the translation command
-		if err := h.sendReplyMessage(msgInfo.Chat, response, msgInfo.ID); err != nil {
+		// Send regular message (no quoting) to keep original YouTube preview visible
+		if err := h.sendReplyMessage(msgInfo.Chat, response, ""); err != nil {
 			fmt.Println("Reply failed:", err)
 		}
 	}
